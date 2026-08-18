@@ -16,12 +16,17 @@ import {
   ORTHOGRAPHY_WORD_BANK,
   MINIMAL_CONTRASTS,
   STRUCTURED_INPUT_EXERCISES,
+  DICTATION_ITEMS,
 } from '../data/orthographyBank';
 import {
   OrthoWordItem,
   MinimalContrastSet,
   TextEvaluationResult,
   ErrorCode,
+  OrthoCategory,
+  ErrorProfile,
+  DailyChallenge,
+  DailyChallengeSegment,
 } from '../types';
 
 /* ============================================================
@@ -220,6 +225,19 @@ const EXTRA_MISSPELLINGS: Array<[string, string, ErrorCode, string]> = [
   // grafías b/v verificables (sólo formas cuyo error NO es palabra válida;
   // «tubo» no se incluye porque es una palabra correcta)
   ['estubo', 'estuvo', '[ORT]', 'El pretérito de «estar» se escribe con V: estuvo (familia de «estuve, estuviste»).'],
+  ['estube', 'estuve', '[ORT]', 'El pretérito de «estar» (1ª persona) se escribe con V: estuve.'],
+  // grafías g/j (formas cuya versión sin corregir NO es palabra válida)
+  ['garage', 'garaje', '[ORT]', 'El sufijo -aje se escribe siempre con J: garaje.'],
+  ['mensage', 'mensaje', '[ORT]', 'El sufijo -aje se escribe siempre con J: mensaje.'],
+  ['viage', 'viaje', '[ORT]', 'El sufijo -aje se escribe siempre con J: viaje.'],
+  ['cojer', 'coger', '[ORT]', 'Los verbos en -ger se escriben con G: coger (como proteger, recoger).'],
+  ['dijieron', 'dijeron', '[ORT]', 'Pretérito de «decir»: dijeron (sin i intermedia).'],
+  // grafías h (formas no válidas del español)
+  ['aser', 'hacer', '[ORT]', 'El verbo «hacer» lleva H inicial muda y C.'],
+  ['iso', 'hizo', '[ORT]', 'El pretérito de «hacer» lleva H y Z: hizo.'],
+  // segmentación / no-palabras frecuentes
+  ['nadien', 'nadie', '[ORT]', '«nadie» no lleva n final: es un indefinido invariable.'],
+  ['haiga', 'haya', '[ORT]', 'La forma correcta del subjuntivo de haber es «haya», no «haiga».'],
 ];
 
 let _misspellingIndex: Map<string, MisspellingEntry> | null = null;
@@ -290,6 +308,28 @@ const LOWERCASE_WORDS = new Set(
     'lunes', 'primavera', 'verano', 'otoño', 'invierno',
   ].map((w) => w.toLowerCase())
 );
+
+// Nombres propios frecuentes (países, ciudades) que suelen escribirse por
+// error en minúscula. Mapea forma en minúscula -> forma correcta. Solo se
+// incluyen los que NO son también palabra común (evita falsos positivos).
+const PROPER_NOUNS = new Map<string, string>([
+  ['españa', 'España'],
+  ['méxico', 'México'],
+  ['argentina', 'Argentina'],
+  ['perú', 'Perú'],
+  ['colombia', 'Colombia'],
+  ['chile', 'Chile'],
+  ['madrid', 'Madrid'],
+  ['barcelona', 'Barcelona'],
+  ['bogotá', 'Bogotá'],
+  ['montevideo', 'Montevideo'],
+  ['europa', 'Europa'],
+  ['américa', 'América'],
+]);
+
+function capitalizeFirst(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1);
+}
 
 // Conectores discursivos que exigen coma delimitadora tras ellos.
 const CONNECTORS: string[][] = [
@@ -431,6 +471,37 @@ export function analyzeText(text: string): ProceduralAnalysis {
       });
       return;
     }
+
+    // (e) Nombre propio (país/ciudad) escrito en minúscula
+    const proper = PROPER_NOUNS.get(lower);
+    if (proper && tok.text !== proper) {
+      findings.push({
+        start: tok.end,
+        code: '[MA]',
+        token: tok.text,
+        correct: proper,
+        suggestion: `«${tok.text}» es un nombre propio: se escribe «${proper}».`,
+        socraticQuestion: '¿Los nombres de países y ciudades llevan mayúscula inicial?',
+      });
+      return;
+    }
+
+    // (f) Falta de mayúscula inicial de oración
+    if (
+      isSentenceStart(text, tok.start) &&
+      tok.text.length > 1 &&
+      /^[a-záéíóúñü]/.test(tok.text)
+    ) {
+      findings.push({
+        start: tok.end,
+        code: '[MA]',
+        token: tok.text,
+        correct: capitalizeFirst(tok.text),
+        suggestion: `Toda oración empieza con mayúscula: «${capitalizeFirst(tok.text)}».`,
+        socraticQuestion: '¿Con qué letra debe empezar una oración?',
+      });
+      return;
+    }
   });
 
   // (d) Conectores discursivos sin coma delimitadora
@@ -459,6 +530,34 @@ export function analyzeText(text: string): ProceduralAnalysis {
       }
       break;
     }
+  }
+
+  // (g) Signos de interrogación/exclamación sin su apertura (¿ / ¡)
+  const countQ = (text.match(/\?/g) || []).length;
+  const countOpenQ = (text.match(/¿/g) || []).length;
+  if (countQ > countOpenQ) {
+    const pos = text.lastIndexOf('?');
+    findings.push({
+      start: pos >= 0 ? pos : text.length,
+      code: '[PUN]',
+      token: '?',
+      correct: '¿…?',
+      suggestion: 'Toda pregunta en español se abre con «¿» y se cierra con «?».',
+      socraticQuestion: '¿Qué signo marca el comienzo de una pregunta en español?',
+    });
+  }
+  const countE = (text.match(/!/g) || []).length;
+  const countOpenE = (text.match(/¡/g) || []).length;
+  if (countE > countOpenE) {
+    const pos = text.lastIndexOf('!');
+    findings.push({
+      start: pos >= 0 ? pos : text.length,
+      code: '[PUN]',
+      token: '!',
+      correct: '¡…!',
+      suggestion: 'Toda exclamación en español se abre con «¡» y se cierra con «!».',
+      socraticQuestion: '¿Qué signo marca el comienzo de una exclamación en español?',
+    });
   }
 
   // Ordenar por posición e insertar los códigos en el texto anotado
@@ -607,4 +706,80 @@ export function generateExerciseBatch(opts?: {
   const ordered = seededShuffle(pool, `batch-${opts?.category || 'all'}`);
   const count = opts?.count ?? ordered.length;
   return ordered.slice(0, count).map(generateSpellingChoice);
+}
+
+/* ============================================================
+ * 7. DESAFÍO DEL DÍA (§37) — ensamblado determinista por fecha
+ * ============================================================
+ * Selecciona de forma reproducible (misma fecha → mismo desafío) un
+ * conjunto de segmentos, priorizando las categorías más débiles del
+ * perfil de error del estudiante. No usa IA: solo el PRNG sembrado por
+ * la fecha y los metadatos del banco.
+ */
+
+const CATEGORY_LABELS: Record<OrthoCategory, string> = {
+  accentuation: 'Acentuación',
+  spellings: 'Grafías',
+  punctuation: 'Puntuación',
+  morphology: 'Morfología',
+  capitals: 'Mayúsculas',
+};
+
+/** Devuelve las categorías ordenadas de más débil a más fuerte. */
+export function weakestCategories(profile: ErrorProfile, take = 2): OrthoCategory[] {
+  const entries = (Object.keys(profile) as OrthoCategory[])
+    .map((cat) => ({ cat, score: profile[cat] ?? 100 }))
+    .sort((a, b) => a.score - b.score);
+  return entries.slice(0, take).map((e) => e.cat);
+}
+
+export function assembleDailyChallenge(dateKey: string, profile: ErrorProfile): DailyChallenge {
+  const seed = `daily-${dateKey}`;
+  const focusCategories = weakestCategories(profile, 2);
+  const segments: DailyChallengeSegment[] = [];
+
+  // 3 contrastes (priorizando los de las categorías débiles cuando existan)
+  const contrastPool = MINIMAL_CONTRASTS.slice();
+  const contrastWeak = contrastPool.filter((c) => focusCategories.includes(c.category));
+  const contrastOrdered = seededShuffle(
+    contrastWeak.length >= 3 ? contrastWeak : contrastPool,
+    `${seed}-contrast`
+  );
+  contrastOrdered.slice(0, 3).forEach((c) =>
+    segments.push({ kind: 'contrast', refId: c.id, label: `Contraste: ${c.title}` })
+  );
+
+  // 4 palabras (priorizando categorías débiles)
+  const wordWeak = ORTHOGRAPHY_WORD_BANK.filter((w) => focusCategories.includes(w.category));
+  const wordOrdered = seededShuffle(
+    wordWeak.length >= 4 ? wordWeak : ORTHOGRAPHY_WORD_BANK.slice(),
+    `${seed}-word`
+  );
+  wordOrdered.slice(0, 4).forEach((w) =>
+    segments.push({ kind: 'spelling', refId: w.id, label: `Palabra: ${w.word}` })
+  );
+
+  // 1 dictado
+  const dict = seededShuffle(DICTATION_ITEMS.slice(), `${seed}-dict`)[0];
+  if (dict) segments.push({ kind: 'dictation', refId: dict.id, label: `Dictado: ${dict.contextTopic}` });
+
+  // 1 mini-texto (input estructurado)
+  const mini = seededShuffle(STRUCTURED_INPUT_EXERCISES.slice(), `${seed}-mini`)[0];
+  if (mini) segments.push({ kind: 'miniText', refId: mini.id, label: `Mini-texto: ${CATEGORY_LABELS[mini.category]}` });
+
+  return {
+    dateKey,
+    seed,
+    estimatedMinutes: Math.max(6, Math.round(segments.length * 1.1)),
+    focusCategories,
+    segments,
+  };
+}
+
+/** Clave de fecha local (YYYY-MM-DD) para sembrar el desafío del día. */
+export function todayKey(d: Date = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }

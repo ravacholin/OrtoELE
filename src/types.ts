@@ -191,3 +191,72 @@ export interface EscapeScenario {
   difficulty: 'Intermedio (B1-B2)' | 'Avanzado (C1-C2)' | 'Fundamental (A1-A2)' | string;
   stages: EscapeRoomStage[];
 }
+
+/* ============================================================
+ * MÓDULO PUNTUACIÓN (§24) — 100% procedural, verificable por regla
+ * ============================================================ */
+
+export type PunctuationExerciseType = 'punctuate' | 'compare' | 'edit';
+
+export interface PunctuationExercise {
+  id: string;
+  level: Level;
+  type: PunctuationExerciseType;
+  focus: string; // p. ej. "coma con conector", "signos de interrogación"
+  instruction: string;
+  // PUNTUAR: texto sin (o con poca) puntuación que el estudiante debe puntuar.
+  rawText?: string;
+  // Forma canónica de referencia (se compara normalizando).
+  canonical?: string;
+  // COMPARAR: dos versiones; el estudiante elige la mejor.
+  options?: { text: string; isBest: boolean; note: string }[];
+  // EDICIÓN: texto con errores inyectados + versión corregida de referencia.
+  brokenText?: string;
+  fixedText?: string;
+  explanation: string;
+  socraticClue: string;
+}
+
+/* ============================================================
+ * MÓDULO MAYÚSCULAS (§25) — corrección determinista por tramos MCER
+ * ============================================================ */
+
+export interface CapitalsExercise {
+  id: string;
+  level: Level;
+  tier: 'A1-A2' | 'B1-B2' | 'C1-C2';
+  focus: string; // "nombres propios", "instituciones", "títulos"...
+  instruction: string;
+  // Texto tal como lo escribiría un estudiante con errores de mayúsculas.
+  rawText: string;
+  // Versión correcta de referencia (misma cadena salvo mayúsculas/minúsculas).
+  correctedText: string;
+  // Palabras concretas cuya capitalización cambia (para feedback token a token).
+  targets: { wrong: string; right: string; reason: string }[];
+  explanation: string;
+  socraticClue: string;
+}
+
+/* ============================================================
+ * DESAFÍO DEL DÍA (§37) — ensamblado determinista por fecha
+ * ============================================================ */
+
+export type DailyChallengeSegmentKind =
+  | 'contrast'
+  | 'spelling'
+  | 'dictation'
+  | 'miniText';
+
+export interface DailyChallengeSegment {
+  kind: DailyChallengeSegmentKind;
+  refId: string;
+  label: string;
+}
+
+export interface DailyChallenge {
+  dateKey: string; // YYYY-MM-DD
+  seed: string;
+  estimatedMinutes: number;
+  focusCategories: OrthoCategory[];
+  segments: DailyChallengeSegment[];
+}
