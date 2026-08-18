@@ -1,6 +1,6 @@
 {
   "name": "Ortografía Lab",
-  "description": "Laboratorio cognitivo de adquisición ortográfica para ELE (A1-C2). 100% procedural, sin motores de IA.",
+  "description": "Ortografía del español para ELE (A1-C2): cómo se escriben las palabras (b/v, s/c/z, g/j, h) en el centro; tildes, puntuación y mayúsculas como apoyo. 100% procedural, sin IA.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

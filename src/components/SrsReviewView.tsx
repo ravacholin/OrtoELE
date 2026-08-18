@@ -191,7 +191,7 @@ export const SrsReviewView: React.FC<SrsReviewViewProps> = ({ onOpenCoach }) => 
                 onClick={() => onOpenCoach(currentWordBankItem)}
                 className="text-xs text-neutral-400 hover:text-neutral-200 underline"
               >
-                Pedir pista socrática
+                Ver pista
               </button>
 
               <button

@@ -1,5 +1,18 @@
 # ORTOGRAFÍA LAB — Plan maestro profundizado (100% procedural, sin IA)
 
+> **Actualización (foco en grafías).** La app se reorganizó para que **el
+> centro sea la ortografía de las palabras** (cómo se escriben: b/v, s/c/z,
+> g/j, h, ll/y, r/rr…). El entrenamiento abre en un módulo dedicado de
+> **Grafías** (elección de la forma correcta en contexto, vía
+> `generateSpellingChoice`), y las pestañas se agrupan en **Núcleo · Grafías**
+> (grafías, memoria visual, familias & sufijos, dictado) y **Secundario**
+> (tildes, puntuación, mayúsculas). Se retiraron de la interfaz funciones que
+> «se iban de mambo» o que sin IA daban una falsa sensación de corrección:
+> **Escritura libre**, **Escape Orto**, **Analytics / Curva de olvido** y
+> **Modo Docente**. El antiguo «Orto Coach socrático» se mantiene como panel
+> de **Pistas** escalonadas (sin disfraz de IA). Las estructuras de datos y el
+> motor de estas funciones siguen en el repositorio pero ya no se exponen.
+
 > Este documento profundiza el prompt maestro original y lo **contrasta con la
 > implementación real**. La aplicación es un laboratorio de adquisición
 > ortográfica ELE (A1–C2) **completamente procedural**: no usa ningún motor de

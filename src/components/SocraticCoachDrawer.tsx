@@ -15,10 +15,10 @@ interface SocraticCoachDrawerProps {
 }
 
 /**
- * ORTO COACH — Tutor socrático 100% procedural (sin IA).
- * Las pistas escalonadas y el microanálisis se derivan íntegramente de los
- * metadatos del ítem (socraticClues, syllables, visualAnchor, confusableWith,
- * examples). No hay llamadas a ningún motor de inferencia.
+ * PISTAS — panel de ayuda escalonada (sin IA).
+ * Las pistas y el microanálisis se derivan íntegramente de los metadatos
+ * del ítem (socraticClues, syllables, visualAnchor, confusableWith,
+ * examples). No hay generación de texto ni llamadas a ningún motor de IA.
  */
 export const SocraticCoachDrawer: React.FC<SocraticCoachDrawerProps> = ({
   isOpen,
@@ -53,8 +53,8 @@ export const SocraticCoachDrawer: React.FC<SocraticCoachDrawerProps> = ({
       <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
         <div className="flex items-center space-x-2">
           <Sparkles className="w-4 h-4 text-amber-400" />
-          <span className="font-bold tracking-wider text-neutral-100 text-sm">ORTO COACH</span>
-          <span className="text-[10px] text-neutral-500 bg-neutral-950 px-1.5 py-0.5 border border-neutral-800">SOCRÁTICO</span>
+          <span className="font-bold tracking-wider text-neutral-100 text-sm">PISTAS</span>
+          <span className="text-[10px] text-neutral-500 bg-neutral-950 px-1.5 py-0.5 border border-neutral-800">SIN IA</span>
         </div>
         <button
           onClick={onClose}
@@ -68,8 +68,8 @@ export const SocraticCoachDrawer: React.FC<SocraticCoachDrawerProps> = ({
       <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
         {/* Method explanation box */}
         <div className="bg-neutral-950 p-3 border border-neutral-800 text-neutral-400 text-[11px] leading-relaxed">
-          <span className="text-neutral-200 font-semibold block mb-1">MÉTODO INDIRECTO (SIN IA):</span>
-          No te damos la respuesta instantánea. El objetivo es que actives tu lexicón mental y descubras el patrón subyacente a partir de pistas escalonadas.
+          <span className="text-neutral-200 font-semibold block mb-1">PISTAS ESCALONADAS:</span>
+          Empezá por la pista 1. Revelá la 2 y la 3 solo si las necesitás. La idea es que primero intentes recordar cómo se escribe la palabra.
         </div>
 
         {/* Target Context */}
@@ -247,8 +247,8 @@ export const SocraticCoachDrawer: React.FC<SocraticCoachDrawerProps> = ({
       <div className="pt-3 border-t border-neutral-800 flex items-start gap-2 text-[10px] text-neutral-500 leading-relaxed">
         <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-neutral-600" />
         <span>
-          Tutor determinista: las pistas provienen de los metadatos del ítem
-          {l1 !== 'español' ? ` y de patrones de interferencia de tu L1 (${l1})` : ''}. Sin motores de IA.
+          Las pistas provienen de los datos de cada palabra
+          {l1 !== 'español' ? ` y de las confusiones típicas de tu L1 (${l1})` : ''}. Sin motores de IA.
         </span>
       </div>
     </div>
