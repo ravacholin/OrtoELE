@@ -1,4 +1,20 @@
-import { OrthoWordItem, MinimalContrastSet, StructuredInputExercise, DictationItem, Level, OrthoCategory, L1Language } from '../types';
+import { OrthoWordItem, MinimalContrastSet, StructuredInputExercise, DictationItem, Level, OrthoCategory, L1Language, EscapeScenario, EscapeRoomStage } from '../types';
+import { EXTRA_WORDS } from './bank/words';
+import { EXTRA_WORDS_2 } from './bank/words2';
+import {
+  EXTRA_CONTRASTS,
+  EXTRA_STRUCTURED_INPUT,
+  EXTRA_DISCOVERY,
+  EXTRA_FAMILIES,
+  EXTRA_DICTATIONS,
+  EXTRA_DIAGNOSTIC,
+  EXTRA_ESCAPE,
+  EXTRA_WRITING_PROMPTS,
+} from './bank/supporting';
+
+// Re-exportados desde módulos dedicados (§24 Puntuación, §25 Mayúsculas).
+export { PUNCTUATION_EXERCISES } from './bank/punctuation';
+export { CAPITALS_EXERCISES } from './bank/capitals';
 
 export interface WordFamilyItem {
   root: string;
@@ -49,30 +65,14 @@ export interface DiagnosticQuestion {
   l1CommonInterference?: L1Language[];
 }
 
-export interface EscapeRoomStage {
-  stageNumber: number;
-  stageTitle: string;
-  briefing: string;
-  instruction: string;
-  encryptedSnippet: string;
-  interactiveType: 'select_multiple' | 'order_syllables' | 'spot_odd_one' | 'type_correct_key' | 'decode_contrast';
-  options?: string[];
-  correctAnswers: string[];
-  clueUnlockCode: string;
-  socraticHint: string;
-}
-
-export interface EscapeScenario {
-  id: string;
-  codeName: string;
-  title: string;
-  description: string;
-  difficulty: 'Intermedio (B1-B2)' | 'Avanzado (C1-C2)' | 'Fundamental (A1-A2)';
-  stages: EscapeRoomStage[];
-}
+// EscapeScenario y EscapeRoomStage viven ahora en ../types (fuente única).
+// Se re-exportan para no romper consumidores que los importaban desde aquí.
+export type { EscapeScenario, EscapeRoomStage } from '../types';
 
 // 1. Core Orthographic Word Bank (Cognitive Model)
 export const ORTHOGRAPHY_WORD_BANK: OrthoWordItem[] = [
+  ...EXTRA_WORDS,
+  ...EXTRA_WORDS_2,
   {
     id: 'w-medico',
     word: 'médico',
@@ -460,6 +460,7 @@ export const ORTHOGRAPHY_WORD_BANK: OrthoWordItem[] = [
 
 // 2. Minimal Contrasts (Tríadas y Pares Semántico-Ortográficos)
 export const MINIMAL_CONTRASTS: MinimalContrastSet[] = [
+  ...EXTRA_CONTRASTS,
   {
     id: 'mc-medico',
     title: 'médico / medico / medicó',
@@ -604,7 +605,7 @@ export const MINIMAL_CONTRASTS: MinimalContrastSet[] = [
     title: 'hecho / echo (Homófonos H)',
     level: 'A2',
     category: 'spellings',
-    subcategory: 'h_morfologia',
+    subcategory: 'homofonos',
     targetFocus: 'Verbo hacer vs verbo echar',
     forms: [
       {
@@ -653,6 +654,7 @@ export const MINIMAL_CONTRASTS: MinimalContrastSet[] = [
 
 // 3. Structured Input Activities (Input Processing)
 export const STRUCTURED_INPUT_EXERCISES: StructuredInputExercise[] = [
+  ...EXTRA_STRUCTURED_INPUT,
   {
     id: 'si-1',
     level: 'A2',
@@ -761,6 +763,7 @@ export const STRUCTURED_INPUT_EXERCISES: StructuredInputExercise[] = [
 
 // 4. Discovery Sets for Inductive Accentuation & Morphological Rules
 export const DISCOVERY_SETS: DiscoverySet[] = [
+  ...EXTRA_DISCOVERY,
   {
     id: 'disc-agudas-llanas',
     title: 'Descubrimiento: ¿Cuándo llevan tilde las palabras agudas?',
@@ -828,6 +831,7 @@ export const DISCOVERY_SETS: DiscoverySet[] = [
 
 // 5. Morphological Word Families & Suffixes
 export const WORD_FAMILIES: WordFamilyItem[] = [
+  ...EXTRA_FAMILIES,
   {
     root: 'pan',
     category: 'morphology',
@@ -890,6 +894,7 @@ export const WORD_FAMILIES: WordFamilyItem[] = [
 
 // 6. Intelligent Dictations (Speech Transcription)
 export const DICTATION_ITEMS: DictationItem[] = [
+  ...EXTRA_DICTATIONS,
   {
     id: 'dict-1',
     level: 'A1',
@@ -934,6 +939,7 @@ export const DICTATION_ITEMS: DictationItem[] = [
 
 // 7. Adaptive Diagnostic Baseline (15 Calibrated Questions)
 export const INITIAL_DIAGNOSTIC_QUESTIONS: DiagnosticQuestion[] = [
+  ...EXTRA_DIAGNOSTIC,
   {
     id: 'diag-1',
     category: 'accentuation',
@@ -1082,6 +1088,7 @@ export const INITIAL_DIAGNOSTIC_QUESTIONS: DiagnosticQuestion[] = [
 
 // 8. Escape Room Scenarios (ESCAPE ORTO)
 export const ESCAPE_SCENARIOS: EscapeScenario[] = [
+  ...EXTRA_ESCAPE,
   {
     id: 'esc-01',
     codeName: 'PROTOCOLO SILICÓN',
@@ -1153,6 +1160,7 @@ export const ESCAPE_SCENARIOS: EscapeScenario[] = [
 
 // 9. Free Writing Prompts by CEFR Level
 export const FREE_WRITING_PROMPTS = [
+  ...EXTRA_WRITING_PROMPTS,
   {
     level: 'A1' as Level,
     title: 'Mensaje de Invitación',

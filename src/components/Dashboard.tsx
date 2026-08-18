@@ -6,7 +6,16 @@ import {
 } from 'lucide-react';
 import { srsManager } from '../utils/srsEngine';
 import { speechService } from '../utils/speech';
+import { assembleDailyChallenge, todayKey } from '../utils/proceduralEngine';
 import { RetentionAnalyticsChart } from './RetentionAnalyticsChart';
+
+const CATEGORY_LABEL: Record<string, string> = {
+  accentuation: 'Acentuación',
+  spellings: 'Grafías',
+  punctuation: 'Puntuación',
+  morphology: 'Morfología',
+  capitals: 'Mayúsculas',
+};
 
 interface DashboardProps {
   profile: UserProfile;
@@ -25,6 +34,27 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [errorCategoryFilter, setErrorCategoryFilter] = useState<string>('all');
 
   const recurrentErrors = srsManager.getDetailedRecurrentMistakes();
+
+  // Desafío del día (§37): ensamblado determinista por fecha, priorizando
+  // las categorías más débiles del perfil. Estado de completado por día en
+  // localStorage (se reinicia solo al cambiar la fecha).
+  const dailyKey = todayKey();
+  const dailyChallenge = assembleDailyChallenge(dailyKey, profile.errorProfile);
+  const [challengeDone, setChallengeDone] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(`ortolab-daily-${dailyKey}`) === 'done';
+    } catch {
+      return false;
+    }
+  });
+  const completeChallenge = () => {
+    try {
+      localStorage.setItem(`ortolab-daily-${dailyKey}`, 'done');
+    } catch {
+      /* almacenamiento no disponible: se mantiene solo en memoria */
+    }
+    setChallengeDone(true);
+  };
 
   const filteredErrors = recurrentErrors.filter(item => {
     if (errorCategoryFilter === 'all') return true;
@@ -173,6 +203,62 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 {profile.level === 'unassigned' ? 'B1' : profile.level}
               </div>
               <span className="text-[11px] font-mono text-neutral-400 block">L1: {profile.l1}</span>
+            </div>
+          </div>
+
+          {/* DESAFÍO DEL DÍA (§37) — ensamblado procedural, sin IA */}
+          <div className="border border-neutral-800 bg-neutral-950 p-5 space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-amber-400" />
+                <span className="text-xs font-bold tracking-wider text-neutral-100">DESAFÍO DEL DÍA</span>
+                <span className="text-[10px] text-neutral-600 font-mono">{dailyChallenge.dateKey}</span>
+              </div>
+              {challengeDone ? (
+                <span className="flex items-center gap-1 text-[11px] text-emerald-400 font-mono">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Completado
+                </span>
+              ) : (
+                <span className="text-[11px] text-neutral-500 font-mono">~{dailyChallenge.estimatedMinutes} min</span>
+              )}
+            </div>
+            <p className="text-[11px] text-neutral-400 font-sans">
+              Enfoque de hoy:{' '}
+              <span className="text-neutral-200">
+                {dailyChallenge.focusCategories.map((c) => CATEGORY_LABEL[c] || c).join(' · ')}
+              </span>{' '}
+              — tus categorías más débiles según el perfil de error.
+            </p>
+            <div className="grid sm:grid-cols-2 gap-1.5">
+              {dailyChallenge.segments.map((s, i) => (
+                <div
+                  key={`${s.refId}-${i}`}
+                  className="flex items-center gap-2 text-[11px] font-mono text-neutral-300 border border-neutral-800 bg-neutral-900/40 px-2 py-1.5"
+                >
+                  <span className="w-4 h-4 flex items-center justify-center text-[9px] bg-neutral-800 text-neutral-400 shrink-0">
+                    {i + 1}
+                  </span>
+                  <span className="truncate">{s.label}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <button
+                onClick={onStartRecommendedSession}
+                className="flex items-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-950 font-bold px-4 py-2 text-xs tracking-wider transition-colors"
+              >
+                <Play className="w-3.5 h-3.5 fill-neutral-950" />
+                <span>EMPEZAR DESAFÍO</span>
+              </button>
+              {!challengeDone && (
+                <button
+                  onClick={completeChallenge}
+                  className="flex items-center gap-2 border border-neutral-800 bg-neutral-950 hover:border-neutral-600 text-neutral-300 px-4 py-2 text-xs transition-colors"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Marcar como completado</span>
+                </button>
+              )}
             </div>
           </div>
 

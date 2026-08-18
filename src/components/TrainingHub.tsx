@@ -1,20 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, OrthoWordItem } from '../types';
-import { 
-  ORTHOGRAPHY_WORD_BANK, 
-  MINIMAL_CONTRASTS, 
-  STRUCTURED_INPUT_EXERCISES, 
-  DISCOVERY_SETS, 
-  WORD_FAMILIES, 
-  DICTATION_ITEMS 
+import {
+  ORTHOGRAPHY_WORD_BANK,
+  MINIMAL_CONTRASTS,
+  STRUCTURED_INPUT_EXERCISES,
+  DISCOVERY_SETS,
+  WORD_FAMILIES,
+  DICTATION_ITEMS,
+  PUNCTUATION_EXERCISES,
+  CAPITALS_EXERCISES
 } from '../data/orthographyBank';
 import { speechService } from '../utils/speech';
 import { srsManager } from '../utils/srsEngine';
 import { buildContrastChallenge, foldAccents } from '../utils/proceduralEngine';
-import { 
-  Eye, Volume2, Sparkles, HelpCircle, ArrowRight, RotateCcw, 
-  Check, AlertCircle, Layers, Compass, Brain, Edit3, ShieldAlert, Zap, CheckCircle2
+import {
+  Eye, Volume2, Sparkles, HelpCircle, ArrowRight, RotateCcw,
+  Check, AlertCircle, Layers, Compass, Brain, Edit3, ShieldAlert, Zap, CheckCircle2,
+  Pilcrow, CaseUpper
 } from 'lucide-react';
+
+/**
+ * Normaliza puntuación para comparar de forma determinista:
+ * colapsa espacios, elimina el espacio antes de un signo de cierre y
+ * unifica mayúsculas/minúsculas. No "adivina": solo compara cadenas.
+ */
+const normalizePunctuation = (s: string): string =>
+  s
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([,.;:!?»)])/g, '$1')
+    .replace(/([¿¡«(])\s+/g, '$1')
+    .toLowerCase();
 
 interface TrainingHubProps {
   profile: UserProfile;
@@ -72,6 +88,17 @@ export const TrainingHub: React.FC<TrainingHubProps> = ({
   } | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
 
+  // Tab 7: Puntuación State (§24)
+  const [punctIndex, setPunctIndex] = useState(0);
+  const [punctInput, setPunctInput] = useState('');
+  const [punctChoice, setPunctChoice] = useState<number | null>(null);
+  const [punctChecked, setPunctChecked] = useState(false);
+
+  // Tab 8: Mayúsculas State (§25)
+  const [capsIndex, setCapsIndex] = useState(0);
+  const [capsInput, setCapsInput] = useState('');
+  const [capsChecked, setCapsChecked] = useState(false);
+
   // Recurrent Errors Focused Session State
   const [recurrentItems, setRecurrentItems] = useState(srsManager.getDetailedRecurrentMistakes());
   const [recurrentIndex, setRecurrentIndex] = useState(0);
@@ -94,6 +121,31 @@ export const TrainingHub: React.FC<TrainingHubProps> = ({
   const currentFamily = WORD_FAMILIES[familyIndex % WORD_FAMILIES.length];
   const currentDictation = DICTATION_ITEMS[dictIndex % DICTATION_ITEMS.length];
   const currentRecurrentItem = recurrentItems[recurrentIndex % Math.max(1, recurrentItems.length)];
+  const currentPunct = PUNCTUATION_EXERCISES[punctIndex % PUNCTUATION_EXERCISES.length];
+  const currentCaps = CAPITALS_EXERCISES[capsIndex % CAPITALS_EXERCISES.length];
+
+  // ¿Coincide la respuesta del estudiante con la referencia canónica?
+  const punctIsCorrect =
+    currentPunct.type === 'compare'
+      ? punctChoice !== null && !!currentPunct.options?.[punctChoice]?.isBest
+      : currentPunct.type === 'punctuate'
+        ? normalizePunctuation(punctInput) === normalizePunctuation(currentPunct.canonical || '')
+        : normalizePunctuation(punctInput) === normalizePunctuation(currentPunct.fixedText || '');
+
+  const capsIsCorrect =
+    capsInput.trim().replace(/\s+/g, ' ') === currentCaps.correctedText.trim().replace(/\s+/g, ' ');
+
+  const goToNextPunct = () => {
+    setPunctIndex((i) => (i + 1) % PUNCTUATION_EXERCISES.length);
+    setPunctInput('');
+    setPunctChoice(null);
+    setPunctChecked(false);
+  };
+  const goToNextCaps = () => {
+    setCapsIndex((i) => (i + 1) % CAPITALS_EXERCISES.length);
+    setCapsInput('');
+    setCapsChecked(false);
+  };
 
   // Photo Mode timer management
   useEffect(() => {
@@ -206,6 +258,8 @@ export const TrainingHub: React.FC<TrainingHubProps> = ({
             { id: 'silaba', label: '04 SÍLABA TÓNICA & DESCUBRIMIENTO', icon: Brain },
             { id: 'morfologia', label: '05 FAMILIAS & SUFIJOS', icon: Edit3 },
             { id: 'dictado', label: '06 DICTADO INTELIGENTE', icon: Volume2 },
+            { id: 'puntuacion', label: '07 PUNTUACIÓN', icon: Pilcrow },
+            { id: 'mayusculas', label: '08 MAYÚSCULAS', icon: CaseUpper },
           ].map(tab => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
@@ -1161,6 +1215,181 @@ export const TrainingHub: React.FC<TrainingHubProps> = ({
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* MODULE 7: PUNTUACIÓN (§24) — PUNTUAR / COMPARAR / EDICIÓN */}
+      {activeTab === 'puntuacion' && (
+        <div className="bg-neutral-900/50 border border-neutral-800 p-5 sm:p-8 space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+            <div className="flex items-center gap-2">
+              <Pilcrow className="w-4 h-4 text-amber-400" />
+              <span className="text-xs font-bold tracking-wider text-neutral-100">PUNTUACIÓN</span>
+              <span className="text-[10px] text-neutral-500 bg-neutral-950 px-1.5 py-0.5 border border-neutral-800 uppercase">
+                {currentPunct.type === 'punctuate' ? 'Puntuar' : currentPunct.type === 'compare' ? 'Comparar' : 'Edición'}
+              </span>
+            </div>
+            <span className="text-[10px] text-neutral-500 font-mono">
+              {currentPunct.focus} · nivel {currentPunct.level} · {punctIndex + 1}/{PUNCTUATION_EXERCISES.length}
+            </span>
+          </div>
+
+          <p className="text-sm text-neutral-300 font-sans">{currentPunct.instruction}</p>
+
+          {/* PUNTUAR / EDICIÓN */}
+          {(currentPunct.type === 'punctuate' || currentPunct.type === 'edit') && (
+            <div className="space-y-4">
+              <div className="bg-neutral-950 border border-neutral-800 p-3 text-neutral-300 font-sans text-sm leading-relaxed">
+                {currentPunct.type === 'punctuate' ? currentPunct.rawText : currentPunct.brokenText}
+              </div>
+              <textarea
+                value={punctInput}
+                onChange={(e) => setPunctInput(e.target.value)}
+                rows={2}
+                placeholder="Reescribí el texto con la puntuación correcta…"
+                className="w-full bg-neutral-950 border border-neutral-800 focus:border-neutral-600 p-3 text-sm text-neutral-100 font-sans outline-none resize-y"
+              />
+              {!punctChecked ? (
+                <button
+                  onClick={() => setPunctChecked(true)}
+                  disabled={!punctInput.trim()}
+                  className="bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40 text-neutral-950 font-bold px-5 py-2 text-xs tracking-wider transition-colors"
+                >
+                  COMPARAR CON LA REFERENCIA
+                </button>
+              ) : (
+                <div className={`border p-3 space-y-2 ${punctIsCorrect ? 'border-emerald-800 bg-emerald-950/30' : 'border-amber-800 bg-amber-950/20'}`}>
+                  <div className="flex items-center gap-2 text-xs font-bold">
+                    {punctIsCorrect ? <Check className="w-4 h-4 text-emerald-400" /> : <AlertCircle className="w-4 h-4 text-amber-400" />}
+                    <span className={punctIsCorrect ? 'text-emerald-300' : 'text-amber-300'}>
+                      {punctIsCorrect ? 'Coincide con la forma canónica.' : 'Hay algo para revisar. Compará con la referencia:'}
+                    </span>
+                  </div>
+                  <p className="text-neutral-200 font-sans text-sm border-l-2 border-neutral-600 pl-2">
+                    {currentPunct.type === 'punctuate' ? currentPunct.canonical : currentPunct.fixedText}
+                  </p>
+                  <p className="text-neutral-400 text-[11px] font-sans">{currentPunct.explanation}</p>
+                  <p className="text-neutral-500 text-[11px] font-sans italic">Pista: {currentPunct.socraticClue}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* COMPARAR */}
+          {currentPunct.type === 'compare' && (
+            <div className="space-y-3">
+              {currentPunct.options?.map((opt, i) => {
+                const chosen = punctChoice === i;
+                const revealed = punctChoice !== null;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => { setPunctChoice(i); setPunctChecked(true); }}
+                    disabled={revealed}
+                    className={`w-full text-left border p-3 transition-colors ${
+                      revealed
+                        ? opt.isBest
+                          ? 'border-emerald-800 bg-emerald-950/30'
+                          : chosen
+                            ? 'border-amber-800 bg-amber-950/20'
+                            : 'border-neutral-800 bg-neutral-950 opacity-70'
+                        : 'border-neutral-800 bg-neutral-950 hover:border-neutral-600'
+                    }`}
+                  >
+                    <span className="text-neutral-200 font-sans text-sm block">{opt.text}</span>
+                    {revealed && (
+                      <span className={`text-[11px] font-sans block mt-1 ${opt.isBest ? 'text-emerald-300' : 'text-neutral-400'}`}>
+                        {opt.isBest ? '✓ ' : '· '}{opt.note}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+              {punctChoice !== null && (
+                <p className="text-neutral-400 text-[11px] font-sans border-t border-neutral-800 pt-2">{currentPunct.explanation}</p>
+              )}
+            </div>
+          )}
+
+          <div className="flex justify-end pt-2 border-t border-neutral-800">
+            <button
+              onClick={goToNextPunct}
+              className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 hover:border-neutral-600 px-4 py-2 text-xs text-neutral-300 transition-colors"
+            >
+              <span>SIGUIENTE</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODULE 8: MAYÚSCULAS (§25) — corrección por tramos MCER */}
+      {activeTab === 'mayusculas' && (
+        <div className="bg-neutral-900/50 border border-neutral-800 p-5 sm:p-8 space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+            <div className="flex items-center gap-2">
+              <CaseUpper className="w-4 h-4 text-amber-400" />
+              <span className="text-xs font-bold tracking-wider text-neutral-100">MAYÚSCULAS</span>
+              <span className="text-[10px] text-neutral-500 bg-neutral-950 px-1.5 py-0.5 border border-neutral-800 uppercase">{currentCaps.tier}</span>
+            </div>
+            <span className="text-[10px] text-neutral-500 font-mono">
+              {currentCaps.focus} · nivel {currentCaps.level} · {capsIndex + 1}/{CAPITALS_EXERCISES.length}
+            </span>
+          </div>
+
+          <p className="text-sm text-neutral-300 font-sans">{currentCaps.instruction}</p>
+
+          <div className="bg-neutral-950 border border-neutral-800 p-3 text-neutral-300 font-sans text-sm leading-relaxed">
+            {currentCaps.rawText}
+          </div>
+          <textarea
+            value={capsInput}
+            onChange={(e) => setCapsInput(e.target.value)}
+            rows={2}
+            placeholder="Reescribí el texto con las mayúsculas y minúsculas correctas…"
+            className="w-full bg-neutral-950 border border-neutral-800 focus:border-neutral-600 p-3 text-sm text-neutral-100 font-sans outline-none resize-y"
+          />
+          {!capsChecked ? (
+            <button
+              onClick={() => setCapsChecked(true)}
+              disabled={!capsInput.trim()}
+              className="bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40 text-neutral-950 font-bold px-5 py-2 text-xs tracking-wider transition-colors"
+            >
+              CORREGIR
+            </button>
+          ) : (
+            <div className={`border p-3 space-y-3 ${capsIsCorrect ? 'border-emerald-800 bg-emerald-950/30' : 'border-amber-800 bg-amber-950/20'}`}>
+              <div className="flex items-center gap-2 text-xs font-bold">
+                {capsIsCorrect ? <Check className="w-4 h-4 text-emerald-400" /> : <AlertCircle className="w-4 h-4 text-amber-400" />}
+                <span className={capsIsCorrect ? 'text-emerald-300' : 'text-amber-300'}>
+                  {capsIsCorrect ? 'Perfecto: coincide con la forma correcta.' : 'Revisá estas mayúsculas:'}
+                </span>
+              </div>
+              <p className="text-neutral-200 font-sans text-sm border-l-2 border-neutral-600 pl-2">{currentCaps.correctedText}</p>
+              <div className="space-y-1">
+                {currentCaps.targets.map((t, i) => (
+                  <div key={i} className="text-[11px] font-sans text-neutral-400">
+                    <span className="font-mono text-rose-300 line-through">{t.wrong}</span>
+                    <ArrowRight className="w-3 h-3 inline mx-1 text-neutral-600" />
+                    <span className="font-mono text-emerald-300">{t.right}</span>
+                    <span className="text-neutral-500"> — {t.reason}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-neutral-400 text-[11px] font-sans border-t border-neutral-800 pt-2">{currentCaps.explanation}</p>
+              <p className="text-neutral-500 text-[11px] font-sans italic">Pista: {currentCaps.socraticClue}</p>
+            </div>
+          )}
+
+          <div className="flex justify-end pt-2 border-t border-neutral-800">
+            <button
+              onClick={goToNextCaps}
+              className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 hover:border-neutral-600 px-4 py-2 text-xs text-neutral-300 transition-colors"
+            >
+              <span>SIGUIENTE</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       )}
     </div>
