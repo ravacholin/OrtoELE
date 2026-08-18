@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, Level, TextEvaluationResult } from '../types';
-import { PenTool, Sparkles, History, Brain, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { PenTool, Sparkles, History, Brain, ShieldCheck } from 'lucide-react';
 import { srsManager } from '../utils/srsEngine';
 import { storageService, WritingSubmission } from '../services/storageService';
+import { analyzeText } from '../utils/proceduralEngine';
 
 interface FreeWritingLabProps {
   profile: UserProfile;
@@ -52,90 +53,32 @@ export const FreeWritingLab: React.FC<FreeWritingLabProps> = ({ profile, onOpenC
 
   const currentPrompt = writingPrompts[selectedPromptIndex];
 
-  const handleEvaluate = async () => {
+  const handleEvaluate = () => {
     if (!studentText.trim() || isEvaluating) return;
     setIsEvaluating(true);
 
-    try {
-      const res = await fetch('/api/evaluate-text', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: studentText,
-          promptType: currentPrompt.topic,
-          level: profile.level === 'unassigned' ? 'B1' : profile.level,
-          l1: profile.l1,
-        }),
-      });
+    // Análisis 100% determinista y local (sin IA). Detecta trampas
+    // ortográficas verificables por regla; no evalúa gramática ni estilo.
+    const analysis = analyzeText(studentText);
+    const result: TextEvaluationResult = {
+      score: analysis.score,
+      annotatedText: analysis.annotatedText,
+      feedbackItems: analysis.feedbackItems,
+      socraticAdvice: analysis.socraticAdvice,
+      isOffline: false,
+    };
 
-      const data = await res.json();
-      
-      const normalizedResult: TextEvaluationResult = {
-        score: data.overallPrecision || 80,
-        annotatedText: data.annotatedText || studentText,
-        feedbackItems: (data.findings || []).map((f: any) => ({
-          code: f.code || '[ORT]',
-          word: f.context || 'Error señalado',
-          suggestion: f.description || '',
-          socraticQuestion: f.question || '',
-        })),
-        socraticAdvice: data.socraticSuggestions?.join(' ') || '',
-        isOffline: data.isOffline,
-      };
+    setEvaluationResult(result);
+    srsManager.recomputeProfileStats();
 
-      setEvaluationResult(normalizedResult);
-      srsManager.recomputeProfileStats();
-
-      // Persist to localStorage history
-      storageService.saveWritingSubmission({
-        promptTitle: currentPrompt.topic,
-        level: currentPrompt.level,
-        text: studentText,
-        result: normalizedResult,
-      });
-      setSavedHistory(storageService.getWritingHistory());
-
-    } catch (err) {
-      // Fallback local heuristic evaluator if API is offline
-      const fallbackResult: TextEvaluationResult = {
-        score: 75,
-        annotatedText: studentText
-          .replace(/Queria/gi, 'Queria [TIL]')
-          .replace(/por que/gi, 'por que [TIL/SEG]')
-          .replace(/empezara/gi, 'empezara [TIL]')
-          .replace(/proximo/gi, 'proximo [TIL]')
-          .replace(/Sin embargo aun/gi, 'Sin embargo, [PUN] aun [TIL]')
-          .replace(/recibi/gi, 'recibi [TIL]')
-          .replace(/confirmacion/gi, 'confirmacion [TIL]'),
-        feedbackItems: [
-          {
-            code: '[TIL]',
-            word: 'Queria, empezara, proximo, recibi, confirmacion',
-            suggestion: 'Revisá la posición del golpe de voz en las palabras agudas, esdrújulas y en los hiatos (quería).',
-            socraticQuestion: '¿Por qué "próximo" necesita tilde siempre?',
-          },
-          {
-            code: '[PUN]',
-            word: 'Sin embargo',
-            suggestion: 'Los conectores contraargumentativos como "sin embargo" van seguidos de coma.',
-            socraticQuestion: '¿Qué pausa natural hacés al decir "Sin embargo" en voz alta?',
-          },
-        ],
-        socraticAdvice: 'Prestá atención a la acentuación de verbos en pretérito e imperfecto, y recordá aislar los conectores con comas.',
-        isOffline: true,
-      };
-
-      setEvaluationResult(fallbackResult);
-      storageService.saveWritingSubmission({
-        promptTitle: currentPrompt.topic,
-        level: currentPrompt.level,
-        text: studentText,
-        result: fallbackResult,
-      });
-      setSavedHistory(storageService.getWritingHistory());
-    } finally {
-      setIsEvaluating(false);
-    }
+    storageService.saveWritingSubmission({
+      promptTitle: currentPrompt.topic,
+      level: currentPrompt.level,
+      text: studentText,
+      result,
+    });
+    setSavedHistory(storageService.getWritingHistory());
+    setIsEvaluating(false);
   };
 
   const loadPastSubmission = (sub: WritingSubmission) => {
@@ -156,6 +99,10 @@ export const FreeWritingLab: React.FC<FreeWritingLabProps> = ({ profile, onOpenC
           <h2 className="text-2xl font-bold font-sans text-neutral-100">
             Laboratorio de Escritura Libre & Autocorrección
           </h2>
+          <span className="inline-flex items-center gap-1.5 mt-1 text-[10px] font-mono text-emerald-400/90 bg-emerald-950/30 border border-emerald-900/60 px-2 py-0.5">
+            <ShieldCheck className="w-3 h-3" />
+            CORRECTOR DETERMINISTA · LOCAL · SIN IA
+          </span>
         </div>
         <div className="flex gap-2">
           {savedHistory.length > 0 && (
@@ -309,7 +256,10 @@ export const FreeWritingLab: React.FC<FreeWritingLabProps> = ({ profile, onOpenC
               <div className="py-20 text-center space-y-3 text-neutral-500">
                 <PenTool className="w-8 h-8 mx-auto text-neutral-700" />
                 <p className="text-xs font-sans max-w-xs mx-auto">
-                  Escribí o pegá tu texto a la izquierda y hacé clic en <strong>Analizar Ortografía</strong> para recibir marcas indirectas ([ORT], [TIL], [PUN]) y guardarlo en tu historial.
+                  Escribí o pegá tu texto a la izquierda y hacé clic en <strong>Analizar Ortografía</strong> para recibir marcas indirectas ([ORT], [TIL], [PUN], [MA], [SEG]) y guardarlo en tu historial.
+                </p>
+                <p className="text-[10px] font-sans max-w-xs mx-auto text-neutral-600 pt-1 border-t border-neutral-800/60">
+                  Corrector <strong>determinista y local</strong>: señala trampas ortográficas verificables por regla. No usa IA ni evalúa gramática o estilo.
                 </p>
               </div>
             )}

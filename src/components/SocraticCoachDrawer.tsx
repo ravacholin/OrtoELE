@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { HelpCircle, ChevronRight, Sparkles, MessageSquare, AlertCircle, X } from 'lucide-react';
-import { OrthoWordItem, Level, L1Language, ErrorCode } from '../types';
+import { ArrowRight, Sparkles, Eye, X, Layers, Info } from 'lucide-react';
+import { OrthoWordItem, Level, L1Language } from '../types';
+import { classifyAccent } from '../utils/proceduralEngine';
 
 interface SocraticCoachDrawerProps {
   isOpen: boolean;
@@ -13,6 +14,12 @@ interface SocraticCoachDrawerProps {
   onUseHint?: (hintLevel: number) => void;
 }
 
+/**
+ * ORTO COACH — Tutor socrático 100% procedural (sin IA).
+ * Las pistas escalonadas y el microanálisis se derivan íntegramente de los
+ * metadatos del ítem (socraticClues, syllables, visualAnchor, confusableWith,
+ * examples). No hay llamadas a ningún motor de inferencia.
+ */
 export const SocraticCoachDrawer: React.FC<SocraticCoachDrawerProps> = ({
   isOpen,
   onClose,
@@ -24,63 +31,21 @@ export const SocraticCoachDrawer: React.FC<SocraticCoachDrawerProps> = ({
   onUseHint,
 }) => {
   const [unlockedLevel, setUnlockedLevel] = useState<number>(1);
-  const [customQuestion, setCustomQuestion] = useState('');
-  const [aiResponses, setAiResponses] = useState<{ query: string; response: string; question?: string }[]>([]);
-  const [isLoadingAi, setIsLoadingAi] = useState(false);
+  const [exampleRevealed, setExampleRevealed] = useState<boolean>(false);
 
   if (!isOpen) return null;
 
   const handleUnlockHint = (lvl: number) => {
     setUnlockedLevel(lvl);
-    if (onUseHint) {
-      onUseHint(lvl);
-    }
+    if (onUseHint) onUseHint(lvl);
   };
 
-  const handleAskCoach = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customQuestion.trim() || isLoadingAi) return;
-
-    const query = customQuestion.trim();
-    setCustomQuestion('');
-    setIsLoadingAi(true);
-
-    try {
-      const res = await fetch('/api/orto-coach', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentText: query,
-          targetWord: targetWordItem?.word || '',
-          targetSentence: targetContextSentence || '',
-          errorCategory: category || targetWordItem?.category || 'spellings',
-          hintLevel: unlockedLevel,
-          level,
-          l1,
-        }),
-      });
-
-      const data = await res.json();
-      setAiResponses(prev => [
-        ...prev,
-        {
-          query,
-          response: data.question || data.clue || 'Observá la forma gráfica y la posición del golpe de voz.',
-          question: data.question,
-        }
-      ]);
-    } catch (err) {
-      setAiResponses(prev => [
-        ...prev,
-        {
-          query,
-          response: 'Considerá la relación entre la raíz de la palabra y su pronunciación prosódica.',
-        }
-      ]);
-    } finally {
-      setIsLoadingAi(false);
-    }
-  };
+  const item = targetWordItem || null;
+  const cleanWord = item ? (item.word.match(/[A-Za-zÁÉÍÓÚáéíóúÑñÜü]+/)?.[0] || item.word) : '';
+  const example = item?.examples?.[0]?.sentence || item?.exampleSentence || '';
+  const blankedExample = example && cleanWord
+    ? example.replace(new RegExp(cleanWord, 'i'), '［ _____ ］')
+    : '';
 
   return (
     <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-neutral-900/98 border-l border-neutral-800 shadow-2xl z-50 flex flex-col p-5 font-mono text-xs backdrop-blur-md">
@@ -103,19 +68,24 @@ export const SocraticCoachDrawer: React.FC<SocraticCoachDrawerProps> = ({
       <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
         {/* Method explanation box */}
         <div className="bg-neutral-950 p-3 border border-neutral-800 text-neutral-400 text-[11px] leading-relaxed">
-          <span className="text-neutral-200 font-semibold block mb-1">MÉTODO INDIRECTO:</span>
-          No te damos la respuesta instantánea. El objetivo es que actives tu lexicón mental y descubras el patrón subyacente.
+          <span className="text-neutral-200 font-semibold block mb-1">MÉTODO INDIRECTO (SIN IA):</span>
+          No te damos la respuesta instantánea. El objetivo es que actives tu lexicón mental y descubras el patrón subyacente a partir de pistas escalonadas.
         </div>
 
         {/* Target Context */}
-        {(targetWordItem || targetContextSentence) && (
+        {(item || targetContextSentence) && (
           <div className="p-3 bg-neutral-950/60 border border-neutral-800/80">
             <span className="text-neutral-500 text-[10px] uppercase block mb-1">Contexto de trabajo:</span>
-            {targetContextSentence ? (
+            {item ? (
+              <p className="text-neutral-200 font-bold text-sm tracking-wide">{item.word}</p>
+            ) : targetContextSentence ? (
               <p className="text-neutral-300 italic font-sans text-xs">«{targetContextSentence}»</p>
-            ) : targetWordItem ? (
-              <p className="text-neutral-200 font-bold text-sm tracking-wide">{targetWordItem.word}</p>
             ) : null}
+            {item && (
+              <span className="text-[10px] text-neutral-500 block mt-1">
+                {item.ruleCategoryName || item.category} · nivel {item.level}
+              </span>
+            )}
           </div>
         )}
 
@@ -133,7 +103,7 @@ export const SocraticCoachDrawer: React.FC<SocraticCoachDrawerProps> = ({
               <span className="text-[10px] text-emerald-400">100% Pts</span>
             </div>
             <p className="text-neutral-300 text-xs font-sans leading-relaxed">
-              {targetWordItem?.socraticClues?.level1 ||
+              {item?.socraticClues?.level1 ||
                 '¿Dónde cae el golpe de voz principal y qué regla fonológica u ortográfica se activa en esta posición?'}
             </p>
           </div>
@@ -158,7 +128,7 @@ export const SocraticCoachDrawer: React.FC<SocraticCoachDrawerProps> = ({
             </div>
             {unlockedLevel >= 2 ? (
               <p className="text-neutral-300 text-xs font-sans leading-relaxed">
-                {targetWordItem?.socraticClues?.level2 ||
+                {item?.socraticClues?.level2 ||
                   'Observá si la palabra pertenece a una familia léxica conocida o si hay un cambio en la terminación verbal o sufijo.'}
               </p>
             ) : (
@@ -186,7 +156,7 @@ export const SocraticCoachDrawer: React.FC<SocraticCoachDrawerProps> = ({
             </div>
             {unlockedLevel >= 3 ? (
               <p className="text-neutral-300 text-xs font-sans leading-relaxed">
-                {targetWordItem?.socraticClues?.level3 || targetWordItem?.rule || 'Norma ortográfica directa activada.'}
+                {item?.socraticClues?.level3 || item?.rule || 'Norma ortográfica directa activada.'}
               </p>
             ) : (
               <p className="text-neutral-600 text-xs italic">Explicación normativa completa para cuando necesites despejar dudas.</p>
@@ -194,21 +164,69 @@ export const SocraticCoachDrawer: React.FC<SocraticCoachDrawerProps> = ({
           </div>
         </div>
 
-        {/* AI Interaction History */}
-        {aiResponses.length > 0 && (
-          <div className="space-y-2 pt-2 border-t border-neutral-800">
-            <span className="text-neutral-500 text-[10px] uppercase font-bold">INTERACCIONES SOCRÁTICAS</span>
-            {aiResponses.map((item, idx) => (
-              <div key={idx} className="bg-neutral-950 border border-neutral-800 p-2.5 space-y-1.5 text-xs">
-                <div className="text-neutral-400 font-sans text-[11px]">
-                  <span className="text-neutral-500 font-mono">TÚ:</span> {item.query}
-                </div>
-                <div className="text-amber-200 font-sans text-[12px] bg-neutral-900/80 p-2 border-l-2 border-amber-500">
-                  <span className="text-neutral-500 font-mono text-[10px] block mb-0.5">ORTO COACH:</span>
-                  {item.response}
-                </div>
+        {/* Deterministic Micro-analysis (replaces the former AI free-text box) */}
+        {item && (
+          <div className="space-y-2.5 pt-2 border-t border-neutral-800">
+            <span className="text-neutral-500 text-[10px] uppercase font-bold flex items-center gap-1.5">
+              <Layers className="w-3 h-3" /> MICROANÁLISIS ORTOGRÁFICO
+            </span>
+
+            {/* Syllabification with stressed syllable */}
+            <div className="border border-neutral-800 bg-neutral-950 p-3 space-y-1.5">
+              <span className="text-[10px] text-neutral-500 uppercase block">Silabación · sílaba tónica</span>
+              <div className="flex flex-wrap gap-1.5">
+                {item.syllables.map((syll, idx) => (
+                  <span
+                    key={idx}
+                    className={`px-2 py-1 border text-xs font-mono ${
+                      idx === item.stressedSyllable
+                        ? 'border-amber-500 bg-amber-950/40 text-amber-300 font-bold'
+                        : 'border-neutral-800 bg-neutral-900 text-neutral-300'
+                    }`}
+                  >
+                    {syll}
+                  </span>
+                ))}
               </div>
-            ))}
+              <span className="text-[10px] text-neutral-500 block">
+                Clasificación: <strong className="text-neutral-300">{classifyAccent(item)}</strong>
+              </span>
+            </div>
+
+            {/* Visual anchor */}
+            {item.visualAnchor && (
+              <div className="border border-neutral-800 bg-neutral-950 p-3 space-y-1">
+                <span className="text-[10px] text-neutral-500 uppercase flex items-center gap-1"><Eye className="w-3 h-3" /> Ancla visual</span>
+                <span className="text-amber-400 font-bold text-sm">{item.visualAnchor.letterToHighlight}</span>
+                <p className="text-neutral-400 font-sans text-[11px] leading-relaxed">{item.visualAnchor.description}</p>
+              </div>
+            )}
+
+            {/* Confusables */}
+            {item.confusableWith.length > 0 && (
+              <div className="border border-neutral-800 bg-neutral-950 p-3 space-y-1">
+                <span className="text-[10px] text-neutral-500 uppercase">No confundir con</span>
+                <p className="text-neutral-300 font-mono text-[11px]">{item.confusableWith.join(' · ')}</p>
+              </div>
+            )}
+
+            {/* Blanked example — active recall */}
+            {blankedExample && (
+              <div className="border border-neutral-800 bg-neutral-950 p-3 space-y-2">
+                <span className="text-[10px] text-neutral-500 uppercase">Recuperación activa</span>
+                <p className="text-neutral-300 font-sans text-[11px] italic">«{blankedExample}»</p>
+                {exampleRevealed ? (
+                  <p className="text-emerald-300 font-sans text-[11px] border-l-2 border-emerald-600 pl-2">«{example}»</p>
+                ) : (
+                  <button
+                    onClick={() => setExampleRevealed(true)}
+                    className="text-[10px] text-neutral-400 hover:text-neutral-200 underline flex items-center gap-1"
+                  >
+                    Revelar la forma en contexto <ArrowRight className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -225,25 +243,14 @@ export const SocraticCoachDrawer: React.FC<SocraticCoachDrawerProps> = ({
         </div>
       </div>
 
-      {/* Ask Coach Input Form */}
-      <form onSubmit={handleAskCoach} className="pt-3 border-t border-neutral-800">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={customQuestion}
-            onChange={(e) => setCustomQuestion(e.target.value)}
-            placeholder="Preguntá una duda o pedí reflexión..."
-            className="flex-1 bg-neutral-950 border border-neutral-800 px-3 py-2 text-xs text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-neutral-600"
-          />
-          <button
-            type="submit"
-            disabled={isLoadingAi || !customQuestion.trim()}
-            className="bg-neutral-100 text-neutral-950 font-bold px-3 py-2 hover:bg-neutral-300 disabled:opacity-40 transition-colors"
-          >
-            {isLoadingAi ? '...' : <ChevronRight className="w-4 h-4" />}
-          </button>
-        </div>
-      </form>
+      {/* Footer note (no AI input) */}
+      <div className="pt-3 border-t border-neutral-800 flex items-start gap-2 text-[10px] text-neutral-500 leading-relaxed">
+        <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-neutral-600" />
+        <span>
+          Tutor determinista: las pistas provienen de los metadatos del ítem
+          {l1 !== 'español' ? ` y de patrones de interferencia de tu L1 (${l1})` : ''}. Sin motores de IA.
+        </span>
+      </div>
     </div>
   );
 };
