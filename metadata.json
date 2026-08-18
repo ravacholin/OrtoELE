@@ -1,0 +1,6 @@
+{
+  "name": "Ortografía Lab",
+  "description": "Laboratorio cognitivo de adquisición ortográfica para ELE (A1-C2)",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
