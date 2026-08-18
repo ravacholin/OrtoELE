@@ -10,6 +10,7 @@ import {
 } from '../data/orthographyBank';
 import { speechService } from '../utils/speech';
 import { srsManager } from '../utils/srsEngine';
+import { buildContrastChallenge, foldAccents } from '../utils/proceduralEngine';
 import { 
   Eye, Volume2, Sparkles, HelpCircle, ArrowRight, RotateCcw, 
   Check, AlertCircle, Layers, Compass, Brain, Edit3, ShieldAlert, Zap, CheckCircle2
@@ -84,6 +85,8 @@ export const TrainingHub: React.FC<TrainingHubProps> = ({
 
   // Current items
   const currentContrast = MINIMAL_CONTRASTS[contrastIndex % MINIMAL_CONTRASTS.length];
+  // Desafío de discriminación derivado de los datos del contraste (no hardcodeado)
+  const contrastChallenge = buildContrastChallenge(currentContrast);
   const currentStructured = STRUCTURED_INPUT_EXERCISES[structuredIndex % STRUCTURED_INPUT_EXERCISES.length];
   const currentPhotoWord = ORTHOGRAPHY_WORD_BANK[photoIndex % ORTHOGRAPHY_WORD_BANK.length];
   const currentStressWord = ORTHOGRAPHY_WORD_BANK[stressItemIndex % ORTHOGRAPHY_WORD_BANK.length];
@@ -283,33 +286,42 @@ export const TrainingHub: React.FC<TrainingHubProps> = ({
               DESAFÍO DE DISCRIMINACIÓN COGNITIVA
             </span>
             <p className="text-xs sm:text-sm font-sans text-neutral-200">
-              ¿Cuál de estas formas representa una acción pasada que ya concluyó?
+              {contrastChallenge.question}
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
-              {currentContrast.forms.map((form, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => {
-                    setSelectedContrastOption(form.word);
-                    setContrastFeedback(true);
-                  }}
-                  className={`px-4 py-2 text-xs border font-mono transition-colors ${
-                    selectedContrastOption === form.word
-                      ? 'border-neutral-100 bg-neutral-100 text-neutral-950 font-bold'
-                      : 'border-neutral-800 bg-neutral-950 text-neutral-300 hover:border-neutral-700'
-                  }`}
-                >
-                  {form.word}
-                </button>
-              ))}
+              {contrastChallenge.options.map((word, idx) => {
+                const chosen = selectedContrastOption === word;
+                const isCorrect = word === contrastChallenge.correct;
+                let cls = 'border-neutral-800 bg-neutral-950 text-neutral-300 hover:border-neutral-700';
+                if (contrastFeedback) {
+                  if (isCorrect) cls = 'border-emerald-500 bg-emerald-950/30 text-emerald-200 font-bold';
+                  else if (chosen) cls = 'border-amber-600 bg-amber-950/30 text-amber-200';
+                  else cls = 'border-neutral-900 bg-neutral-950/40 text-neutral-600';
+                } else if (chosen) {
+                  cls = 'border-neutral-100 bg-neutral-100 text-neutral-950 font-bold';
+                }
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      if (contrastFeedback) return;
+                      setSelectedContrastOption(word);
+                      setContrastFeedback(true);
+                    }}
+                    className={`px-4 py-2 text-xs border font-mono transition-colors ${cls}`}
+                  >
+                    {word}
+                  </button>
+                );
+              })}
             </div>
 
             {contrastFeedback && (
               <div className="bg-neutral-900 border border-neutral-800 p-4 text-xs font-sans text-neutral-300 space-y-1 mt-3">
-                <span className="font-mono text-emerald-400 font-bold block">PATRÓN INTEGRADO</span>
-                <p>
-                  La tilde en la última sílaba (aguda terminada en vocal) señala la flexión del pretérito perfecto simple de tercera persona.
-                </p>
+                <span className={`font-mono font-bold block ${selectedContrastOption === contrastChallenge.correct ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {selectedContrastOption === contrastChallenge.correct ? 'DISCRIMINACIÓN CORRECTA' : `REVISÁ: LA FORMA ERA «${contrastChallenge.correct}»`}
+                </span>
+                <p>{contrastChallenge.explanation}</p>
               </div>
             )}
           </div>
@@ -699,11 +711,21 @@ export const TrainingHub: React.FC<TrainingHubProps> = ({
       {/* MODULE 5: MORFOLOGÍA & FAMILIAS DE PALABRAS */}
       {activeTab === 'morfologia' && (
         <div className="border border-neutral-800 bg-neutral-950 p-6 sm:p-8 space-y-6">
-          <div className="border-b border-neutral-800 pb-3 text-xs flex justify-between">
+          <div className="border-b border-neutral-800 pb-3 text-xs flex justify-between items-center">
             <span className="font-bold text-neutral-400 uppercase">
-              FAMILIA LÉXICA: RAÍZ "{currentFamily.root.toUpperCase()}"
+              FAMILIA LÉXICA {familyIndex % WORD_FAMILIES.length + 1}/{WORD_FAMILIES.length}: RAÍZ "{currentFamily.root.toUpperCase()}"
             </span>
-            <span className="text-neutral-500">MORFOLOGÍA DERIVATIVA</span>
+            <button
+              onClick={() => {
+                setFamilyIndex(i => i + 1);
+                setFamilyBuiltWord('');
+                setFamilyFeedback(null);
+              }}
+              className="flex items-center gap-1.5 border border-neutral-800 hover:border-neutral-600 text-neutral-300 px-3 py-1.5 transition-colors"
+            >
+              <span>SIGUIENTE FAMILIA</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
 
           <div className="space-y-3">
@@ -734,7 +756,7 @@ export const TrainingHub: React.FC<TrainingHubProps> = ({
               DESAFÍO DE RECONSTRUCCIÓN
             </span>
             <p className="text-xs font-sans text-neutral-200">
-              Formá el adverbio en -mente a partir del adjetivo <strong>"rápido"</strong> manteniendo las reglas de acentuación:
+              {currentFamily.reconstruction.instruction}
             </p>
             <div className="flex gap-2 max-w-md">
               <input
@@ -746,8 +768,9 @@ export const TrainingHub: React.FC<TrainingHubProps> = ({
               />
               <button
                 onClick={() => {
-                  const isOk = familyBuiltWord.trim().toLowerCase() === 'rápidamente';
-                  setFamilyFeedback(isOk);
+                  const answer = currentFamily.reconstruction.answer.toLowerCase();
+                  const typed = familyBuiltWord.trim().toLowerCase();
+                  setFamilyFeedback(typed === answer);
                 }}
                 className="bg-neutral-100 text-neutral-950 font-bold px-4 py-2 text-xs hover:bg-neutral-200"
               >
@@ -755,15 +778,23 @@ export const TrainingHub: React.FC<TrainingHubProps> = ({
               </button>
             </div>
 
-            {familyFeedback !== null && (
-              <div className={`p-3 text-xs font-sans border ${familyFeedback ? 'border-emerald-500/80 bg-emerald-950/20 text-emerald-300' : 'border-amber-500/80 bg-amber-950/20 text-amber-300'}`}>
-                {familyFeedback ? (
-                  <span>¡Exacto! "rápidamente" conserva la tilde del adjetivo de origen "rápido".</span>
-                ) : (
-                  <span>Revisá la tilde. Los adverbios en -mente conservan la tilde original de la palabra base ("rápido" -&gt; "rápidamente").</span>
-                )}
-              </div>
-            )}
+            {familyFeedback !== null && (() => {
+              const answer = currentFamily.reconstruction.answer.toLowerCase();
+              const typed = familyBuiltWord.trim().toLowerCase();
+              // "Casi": grafía correcta pero difiere sólo en la tilde
+              const nearMiss = !familyFeedback && foldAccents(typed) === foldAccents(answer);
+              return (
+                <div className={`p-3 text-xs font-sans border ${familyFeedback ? 'border-emerald-500/80 bg-emerald-950/20 text-emerald-300' : 'border-amber-500/80 bg-amber-950/20 text-amber-300'}`}>
+                  {familyFeedback ? (
+                    <span>{currentFamily.reconstruction.successNote}</span>
+                  ) : nearMiss ? (
+                    <span>Casi. La grafía es correcta pero revisá la tilde. {currentFamily.reconstruction.hint}</span>
+                  ) : (
+                    <span>{currentFamily.reconstruction.hint}</span>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

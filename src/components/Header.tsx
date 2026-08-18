@@ -67,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
             <div className="hidden md:flex items-center space-x-1.5 text-xs text-neutral-500 font-mono">
               <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-              <span>MOTOR COGNITIVO V1.4</span>
+              <span>MOTOR PROCEDURAL V2.0 · SIN IA</span>
             </div>
           </div>
 

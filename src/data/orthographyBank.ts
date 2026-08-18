@@ -14,6 +14,13 @@ export interface WordFamilyItem {
     criticalLetter: string;
   }[];
   discoveryQuestion: string;
+  // Tarea de reconstrucción morfológica (data-driven, específica de la raíz)
+  reconstruction: {
+    instruction: string;
+    answer: string;
+    successNote: string;
+    hint: string;
+  };
 }
 
 export interface DiscoverySet {
@@ -384,6 +391,70 @@ export const ORTHOGRAPHY_WORD_BANK: OrthoWordItem[] = [
       level2: 'Los conectores como "sin embargo", "no obstante" o "por lo tanto" requieren puntuación delimitadora.',
       level3: 'Se escribe separado ("sin embargo") y seguido de coma: "; sin embargo, ..."'
     }
+  },
+  {
+    id: 'w-verguenza',
+    word: 'vergüenza',
+    level: 'B1',
+    category: 'spellings',
+    subcategory: 'dieresis',
+    difficulty: 4,
+    phonology: "/beɾ'ɣwen.θa/",
+    syllables: ['ver', 'güen', 'za'],
+    stressedSyllable: 1,
+    rule: 'La diéresis (¨) sobre la U en güe/güi indica que la U SÍ se pronuncia (gü-e). Sin diéresis, la U sería muda (gue = /ge/).',
+    ruleCategoryName: 'Diéresis en gü (güe / güi)',
+    semanticField: 'Emociones y carácter',
+    frequency: 'medium',
+    commonErrors: ['verguenza', 'berguenza', 'vergïenza'],
+    confusableWith: ['pingüino', 'bilingüe', 'antigüedad'],
+    examples: [
+      { sentence: 'Sintió vergüenza al equivocarse en público.', role: 'Sustantivo con diéresis' },
+      { sentence: 'El pingüino y la cigüeña también llevan diéresis.', role: 'Familia de la diéresis' }
+    ],
+    l1Risk: ['inglés', 'francés', 'italiano', 'portugués', 'alemán'],
+    visualAnchor: {
+      letterToHighlight: 'Ü',
+      description: 'Los dos puntitos sobre la U (¨) le devuelven la voz: gü-EN suena, no queda muda.',
+      soundClue: 'Se oye la U: ver-GÜEN-za'
+    },
+    socraticClues: {
+      level1: 'Al pronunciar «vergüenza», ¿escuchás la U entre la G y la E, o queda muda?',
+      level2: 'Si la U debe sonar en las sílabas gue/gui, se le colocan dos puntos (diéresis): güe, güi.',
+      level3: 'Lleva diéresis sobre la U porque esa U se pronuncia: "vergüenza".'
+    }
+  },
+  {
+    id: 'w-tambien',
+    word: 'también',
+    level: 'A2',
+    category: 'accentuation',
+    subcategory: 'aguda',
+    difficulty: 2,
+    phonology: "/tam'bjen/",
+    syllables: ['tam', 'bién'],
+    stressedSyllable: 1,
+    rule: 'Palabra aguda terminada en -n: lleva tilde en la última sílaba (tam-BIÉN).',
+    ruleCategoryName: 'Acentuación aguda (n/s/vocal)',
+    semanticField: 'Conectores aditivos',
+    frequency: 'high',
+    commonErrors: ['tambien'],
+    confusableWith: ['también', 'tan bien'],
+    examples: [
+      { sentence: 'Yo también quiero participar en el proyecto.', role: 'Adverbio de adición (una palabra)' },
+      { sentence: 'Cantás muy bien y bailás tan bien como ella.', role: 'Contraste con "tan bien" (dos palabras)' }
+    ],
+    l1Risk: ['inglés', 'francés', 'portugués', 'chino'],
+    visualAnchor: {
+      letterToHighlight: 'É',
+      description: 'Aguda terminada en N: la fuerza de voz cae en BIÉN y por eso lleva tilde.',
+      soundClue: 'Golpe de voz final: tam-BIÉN'
+    },
+    socraticClues: {
+      level1: '¿En qué sílaba cae el golpe de voz: en TAM o en BIÉN? ¿En qué letra termina la palabra?',
+      level2: 'Las palabras agudas (fuerza en la última sílaba) llevan tilde cuando terminan en n, s o vocal.',
+      level3: 'Es aguda terminada en -n, por eso lleva tilde: "también".'
+    }
   }
 ];
 
@@ -552,6 +623,31 @@ export const MINIMAL_CONTRASTS: MinimalContrastSet[] = [
       }
     ],
     discoveryQuestion: '¿La acción proviene de FABRICAR/REALIZAR (hacer) o de LANZAR/VERTER (echar)?'
+  },
+  {
+    id: 'mc-si-si',
+    title: 'sí / si (Tilde diacrítica)',
+    level: 'A2',
+    category: 'accentuation',
+    subcategory: 'diacritica',
+    targetFocus: 'Afirmación/pronombre tónico vs conjunción condicional átona',
+    forms: [
+      {
+        word: 'sí',
+        accentType: 'Monosílabo tónico (con tilde diacrítica)',
+        grammaticalFunction: 'Adverbio de afirmación o pronombre reflexivo',
+        meaningContext: 'Afirma («¡sí!») o refuerza («volvió en sí»).',
+        exampleSentence: 'Le pregunté y me dijo que sí.'
+      },
+      {
+        word: 'si',
+        accentType: 'Monosílabo átono (sin tilde)',
+        grammaticalFunction: 'Conjunción condicional (o nota musical)',
+        meaningContext: 'Introduce una condición: «si llueve...».',
+        exampleSentence: 'Si estudiás, vas a aprobar el examen.'
+      }
+    ],
+    discoveryQuestion: '¿La palabra afirma algo (¡sí!) o plantea una condición hipotética (si...)?'
   }
 ];
 
@@ -744,7 +840,13 @@ export const WORD_FAMILIES: WordFamilyItem[] = [
       { word: 'empanar', suffixOrPrefix: 'em- (prefijo antes de P) + -ar', partOfSpeech: 'Verbo', meaning: 'Cubrir con pan rallado', criticalLetter: 'm ante p' },
       { word: 'panificado', suffixOrPrefix: '-ificado (participio)', partOfSpeech: 'Adjetivo/Sustantivo', meaning: 'Producto horneado', criticalLetter: 'p-a-n' }
     ],
-    discoveryQuestion: '¿Qué elemento se mantiene idéntico en toda la familia y qué regla de prefijo aparece en "empanar"?'
+    discoveryQuestion: '¿Qué elemento se mantiene idéntico en toda la familia y qué regla de prefijo aparece en "empanar"?',
+    reconstruction: {
+      instruction: 'Formá el sustantivo de LUGAR (la tienda donde se vende pan) a partir de «pan» con el sufijo -adería:',
+      answer: 'panadería',
+      successNote: '¡Exacto! «panadería» conserva la raíz "pan" y lleva tilde en la í por el hiato (-de-RÍ-a).',
+      hint: 'Mantené la raíz "pan" y recordá la tilde del hiato en la terminación -ería → -ía.',
+    }
   },
   {
     root: 'hacer',
@@ -758,7 +860,13 @@ export const WORD_FAMILIES: WordFamilyItem[] = [
       { word: 'hacedor', suffixOrPrefix: '-edor (agente)', partOfSpeech: 'Sustantivo', meaning: 'Quien produce o crea', criticalLetter: 'h inicial' },
       { word: 'deshecho', suffixOrPrefix: 'des- (inversión) + hecho', partOfSpeech: 'Adjetivo', meaning: 'Desbaratado o destruido (no confundir con desecho de basura)', criticalLetter: 'h intermedia' }
     ],
-    discoveryQuestion: '¿Por qué "deshecho" (de deshacer) lleva H intermedia y "desecho" (de desechar) no?'
+    discoveryQuestion: '¿Por qué "deshecho" (de deshacer) lleva H intermedia y "desecho" (de desechar) no?',
+    reconstruction: {
+      instruction: 'Formá el verbo que significa «volver a hacer» con el prefijo re- sobre «hacer»:',
+      answer: 'rehacer',
+      successNote: '¡Exacto! «rehacer» conserva la H del verbo base "hacer" (queda intercalada tras el prefijo re-).',
+      hint: 'La familia de "hacer" siempre conserva la H, aunque quede en el interior de la palabra.',
+    }
   },
   {
     root: 'rápido',
@@ -770,7 +878,13 @@ export const WORD_FAMILIES: WordFamilyItem[] = [
       { word: 'rápidamente', suffixOrPrefix: '-mente', partOfSpeech: 'Adverbio', meaning: 'De manera veloz', criticalLetter: 'á con tilde' },
       { word: 'rapidez', suffixOrPrefix: '-ez (cualidad)', partOfSpeech: 'Sustantivo', meaning: 'Velocidad (termina en z, sin tilde)', criticalLetter: 'z final' }
     ],
-    discoveryQuestion: '¿Por qué "rápidamente" conserva la tilde pero "rapidez" no la lleva?'
+    discoveryQuestion: '¿Por qué "rápidamente" conserva la tilde pero "rapidez" no la lleva?',
+    reconstruction: {
+      instruction: 'Formá el adverbio en -mente a partir del adjetivo «rápido», manteniendo las reglas de acentuación:',
+      answer: 'rápidamente',
+      successNote: '¡Exacto! «rápidamente» conserva la tilde del adjetivo de origen "rápido" (esdrújula).',
+      hint: 'Los adverbios en -mente conservan la tilde del adjetivo base si este la lleva ("rápido" → "rápidamente").',
+    }
   }
 ];
 

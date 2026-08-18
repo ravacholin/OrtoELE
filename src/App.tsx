@@ -175,7 +175,7 @@ export default function App() {
       <footer className="border-t border-neutral-900 bg-neutral-950 py-6 text-center text-xs font-mono text-neutral-600">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>ORTOGRAFÍA LAB · Laboratorio Cognitivo de Adquisición Ortográfica ELE</span>
-          <span className="text-neutral-500">Recuperación Activa · Memoria Ideovisual · Input Estructurado</span>
+          <span className="text-neutral-500">100% Procedural · Sin IA · Recuperación Activa · Memoria Ideovisual · Repetición Espaciada</span>
         </div>
       </footer>
     </div>
