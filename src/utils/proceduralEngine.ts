@@ -27,6 +27,7 @@ import {
   ErrorProfile,
   DailyChallenge,
   DailyChallengeSegment,
+  ExerciseKind,
 } from '../types';
 
 /* ============================================================
@@ -56,6 +57,19 @@ export function foldAccents(input: string): string {
 
 export function hasWrittenAccent(word: string): boolean {
   return /[áéíóúÁÉÍÓÚ]/.test(word);
+}
+
+/**
+ * Quita las tildes de acentuación preservando mayúsculas/minúsculas y la
+ * ñ (a diferencia de `foldAccents`, que además pasa a minúscula). Útil para
+ * mostrar una palabra "sin pistas" de tilde en los ejercicios de sílaba
+ * tónica.
+ */
+export function stripTildes(input: string): string {
+  return input
+    .normalize('NFD')
+    .replace(COMBINING_ACCENTS, '')
+    .normalize('NFC');
 }
 
 export type AccentClass = 'aguda' | 'llana' | 'esdrújula' | 'sobresdrújula';
@@ -782,4 +796,218 @@ export function todayKey(d: Date = new Date()): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+/* ============================================================
+ * 8. EVALUACIÓN TOLERANTE E INFORMATIVA
+ * ============================================================
+ * Distingue el acierto exacto de un "casi" por tilde (mismo esqueleto
+ * de letras) de un error de grafía. Reemplaza las comparaciones
+ * `===` frágiles que penalizaban igual una tilde olvidada que una
+ * grafía equivocada.
+ */
+
+export type AnswerVerdict = 'correct' | 'accent-only' | 'wrong';
+
+export function evaluateAnswer(input: string, expected: string): {
+  verdict: AnswerVerdict;
+  message: string;
+} {
+  const a = input.trim().toLowerCase();
+  const b = expected.trim().toLowerCase();
+  if (!a) return { verdict: 'wrong', message: 'No escribiste nada.' };
+  if (a === b) return { verdict: 'correct', message: '¡Correcto!' };
+  if (foldAccents(a) === foldAccents(b)) {
+    return {
+      verdict: 'accent-only',
+      message: 'Casi: las letras están bien, pero revisá la tilde.',
+    };
+  }
+  return { verdict: 'wrong', message: `La forma correcta es «${expected}».` };
+}
+
+/* ============================================================
+ * 9. GENERADORES DE FORMATOS VARIADOS (mismos datos, más variedad)
+ * ============================================================ */
+
+// Grupos grafémicos para el ejercicio de completar la letra dudosa.
+const GRAPHEME_GROUPS: string[][] = [
+  ['b', 'v'],
+  ['g', 'j'],
+  ['c', 's', 'z'],
+  ['ll', 'y'],
+  ['y', 'i'],
+  ['s', 'x'],
+];
+
+export interface FillGraphemeExercise {
+  id: string;
+  word: string;            // forma correcta completa (con tildes)
+  maskedWord: string;      // palabra con la letra crítica como ▯
+  contextSentence: string; // oración de ejemplo con la palabra enmascarada
+  options: string[];       // opciones de letra (p. ej. ['b','v'])
+  correctLetter: string;
+  explanation: string;
+  socraticClue: string;
+  category: OrthoWordItem['category'];
+}
+
+/**
+ * Intenta generar un ejercicio de "completar la letra dudosa" ocultando
+ * SOLO la grafía crítica (no la palabra entera). Solo funciona para
+ * sustituciones limpias de una letra (b/v, g/j, c/s/z…); si el error
+ * implica tilde, inserción (h) o dígrafos de distinta longitud, devuelve
+ * null y el llamador usa otro formato.
+ */
+export function tryGenerateFillGrapheme(item: OrthoWordItem, seed: string): FillGraphemeExercise | null {
+  const clean = (item.word.match(WORD_RE)?.[0]) || item.word;
+  const lowerClean = clean.toLowerCase();
+
+  for (const rawErr of item.commonErrors) {
+    const err = rawErr.trim().toLowerCase();
+    if (!err || /\s/.test(err)) continue;
+    if (err.length !== lowerClean.length) continue;             // solo sustitución 1:1
+    if (foldAccents(err) === foldAccents(lowerClean)) continue; // eso sería tilde, no grafía
+
+    const foldedWord = foldAccents(lowerClean);
+    const foldedErr = foldAccents(err);
+    const diffs: number[] = [];
+    for (let i = 0; i < foldedWord.length; i++) {
+      if (foldedWord[i] !== foldedErr[i]) diffs.push(i);
+    }
+    if (diffs.length !== 1) continue;
+
+    const idx = diffs[0];
+    const correctLetter = lowerClean[idx];
+    const errLetter = err[idx];
+    const group = GRAPHEME_GROUPS.find((g) => g.includes(correctLetter) && g.includes(errLetter));
+    const options = group ? [...group] : Array.from(new Set([correctLetter, errLetter]));
+    const shuffled = seededShuffle(options, `${seed}-fg-${item.id}`);
+    const masked = clean.slice(0, idx) + '▯' + clean.slice(idx + 1);
+    const example = item.examples[0]?.sentence || item.exampleSentence || '';
+    const contextSentence = example ? example.replace(new RegExp(clean, 'i'), masked) : masked;
+
+    return {
+      id: `fg-${item.id}`,
+      word: clean,
+      maskedWord: masked,
+      contextSentence,
+      options: shuffled,
+      correctLetter,
+      explanation: item.rule,
+      socraticClue: item.socraticClues.level1,
+      category: item.category,
+    };
+  }
+  return null;
+}
+
+export interface ErrorSpottingExercise {
+  id: string;
+  tokens: string[];        // palabras de la oración tal como se muestran
+  wrongIndex: number;      // índice de la palabra mal escrita, o -1 si no hay
+  hasError: boolean;
+  correctWord: string;
+  explanation: string;
+  socraticClue: string;
+  category: OrthoWordItem['category'];
+}
+
+/**
+ * Genera un "cazador de errores": muestra la oración de ejemplo y, de
+ * forma sembrada, a veces inyecta un error de grafía real (`commonErrors`)
+ * en la palabra objetivo. El estudiante debe señalar la palabra incorrecta
+ * o indicar que no hay errores. Enseña a detectar la forma en contexto.
+ */
+export function generateErrorSpotting(item: OrthoWordItem, seed: string): ErrorSpottingExercise {
+  const clean = (item.word.match(WORD_RE)?.[0]) || item.word;
+  const example = item.examples[0]?.sentence || item.exampleSentence || `${clean}.`;
+  const rng = mulberry32(hashSeed(`${seed}-es-${item.id}`));
+  const distractor = item.commonErrors
+    .map((e) => e.trim())
+    .find((e) => e && !/\s/.test(e) && foldAccents(e) !== foldAccents(clean));
+  const injectError = !!distractor && rng() < 0.6;
+
+  const tokens = example.split(/\s+/).filter(Boolean);
+  let targetTok = -1;
+  for (let i = 0; i < tokens.length; i++) {
+    const letters = tokens[i].match(WORD_RE)?.[0] || '';
+    if (letters && foldAccents(letters) === foldAccents(clean)) {
+      targetTok = i;
+      break;
+    }
+  }
+
+  const displayTokens = [...tokens];
+  let wrongIndex = -1;
+  if (injectError && targetTok >= 0 && distractor) {
+    const letters = tokens[targetTok].match(WORD_RE)?.[0] || clean;
+    displayTokens[targetTok] = tokens[targetTok].replace(letters, distractor);
+    wrongIndex = targetTok;
+  }
+
+  return {
+    id: `es-${item.id}`,
+    tokens: displayTokens,
+    wrongIndex,
+    hasError: wrongIndex >= 0,
+    correctWord: clean,
+    explanation: item.rule,
+    socraticClue: item.socraticClues.level1,
+    category: item.category,
+  };
+}
+
+export interface AccentPlacementExercise {
+  id: string;
+  word: string;
+  syllables: string[];
+  stressedIndex: number;
+  accentClass: AccentClass;
+  needsWrittenAccent: boolean;
+  explanation: string;
+  socraticClue: string;
+  category: OrthoWordItem['category'];
+}
+
+/**
+ * Ejercicio de sílaba tónica: el estudiante marca la sílaba donde recae
+ * el golpe de voz. Totalmente derivado de los metadatos prosódicos del
+ * banco (`syllables` + `stressedSyllable`).
+ */
+export function generateAccentPlacement(item: OrthoWordItem): AccentPlacementExercise {
+  return {
+    id: `ap-${item.id}`,
+    word: item.word,
+    syllables: item.syllables,
+    stressedIndex: item.stressedSyllable,
+    accentClass: classifyAccent(item),
+    needsWrittenAccent: hasWrittenAccent(item.word),
+    explanation: item.rule,
+    socraticClue: item.socraticClues.level1,
+    category: item.category,
+  };
+}
+
+/**
+ * Elige un formato de ejercicio apropiado para el ítem, variando de forma
+ * sembrada para que la misma palabra no salga siempre igual. Las palabras
+ * de acentuación tienden a "colocar la tilde"; las de grafía a "completar
+ * la letra" o "cazar el error".
+ */
+export function pickExerciseKind(item: OrthoWordItem, seed: string): ExerciseKind {
+  const rng = mulberry32(hashSeed(`${seed}-kind-${item.id}`));
+  const r = rng();
+
+  if (item.category === 'accentuation') {
+    // Acentuación: alterna marcar la sílaba tónica y elegir la forma con/
+    // sin tilde. Se evita "cazar el error" porque el distractor suele ser
+    // solo un cambio de tilde (no de grafía) y daría oraciones sin error.
+    return r < 0.55 ? 'accent-placement' : 'spelling-choice';
+  }
+
+  const canFill = tryGenerateFillGrapheme(item, seed) !== null;
+  if (canFill && r < 0.45) return 'fill-grapheme';
+  if (r < 0.75) return 'spelling-choice';
+  return 'error-spotting';
 }

@@ -16,10 +16,15 @@ const CATEGORY_LABEL: Record<string, string> = {
   capitals: 'Mayúsculas',
 };
 
+type SessionFocus = 'accentuation' | 'spellings' | 'punctuation' | 'morphology' | 'capitals' | 'grafias' | 'mixed';
+
 interface DashboardProps {
   profile: UserProfile;
   onNavigate: (view: string, subcategory?: string) => void;
   onStartRecommendedSession: () => void;
+  onStartDailyChallenge: () => void;
+  onStartFocusSession: (focus: SessionFocus) => void;
+  onStartMistakeReview?: (wordIds: string[]) => void;
   onOpenCoach?: (targetWord?: OrthoWordItem, sentence?: string) => void;
 }
 
@@ -27,33 +32,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
   profile,
   onNavigate,
   onStartRecommendedSession,
+  onStartDailyChallenge,
+  onStartFocusSession,
+  onStartMistakeReview,
   onOpenCoach,
 }) => {
   const [dashboardTab, setDashboardTab] = useState<'overview' | 'recurrent_errors'>('overview');
   const [errorCategoryFilter, setErrorCategoryFilter] = useState<string>('all');
 
   const recurrentErrors = srsManager.getDetailedRecurrentMistakes();
+  // Honestidad: si no hay ni un intento ni sesión/diagnóstico, mostramos
+  // estado vacío en vez de métricas en cero que parezcan un mal desempeño.
+  const hasData = srsManager.hasAnyAttempts() || profile.sessionsCompleted > 0;
 
   // Desafío del día (§37): ensamblado determinista por fecha, priorizando
   // las categorías más débiles del perfil. Estado de completado por día en
   // localStorage (se reinicia solo al cambiar la fecha).
   const dailyKey = todayKey();
   const dailyChallenge = assembleDailyChallenge(dailyKey, profile.errorProfile);
-  const [challengeDone, setChallengeDone] = useState<boolean>(() => {
+  const challengeDone = (() => {
     try {
       return localStorage.getItem(`ortolab-daily-${dailyKey}`) === 'done';
     } catch {
       return false;
     }
-  });
-  const completeChallenge = () => {
-    try {
-      localStorage.setItem(`ortolab-daily-${dailyKey}`, 'done');
-    } catch {
-      /* almacenamiento no disponible: se mantiene solo en memoria */
-    }
-    setChallengeDone(true);
-  };
+  })();
 
   const filteredErrors = recurrentErrors.filter(item => {
     if (errorCategoryFilter === 'all') return true;
@@ -68,11 +71,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const handleStartFocusedTraining = (specificWordId?: string) => {
-    if (specificWordId) {
-      onNavigate('training', 'fotografia');
-    } else {
-      onNavigate('training', 'recurrentes');
+    if (onStartMistakeReview) {
+      const ids = specificWordId ? [specificWordId] : filteredErrors.map((e) => e.wordItem.id);
+      if (ids.length > 0) {
+        onStartMistakeReview(ids);
+        return;
+      }
     }
+    onNavigate('training', 'recurrentes');
   };
 
   return (
@@ -160,9 +166,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="border border-neutral-800 bg-neutral-950 p-4 space-y-1">
               <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider block">PRECISIÓN GLOBAL</span>
               <div className="text-2xl sm:text-3xl font-mono font-bold text-neutral-100">
-                {profile.globalPrecision}%
+                {hasData ? `${profile.globalPrecision}%` : '—'}
               </div>
-              <span className="text-[11px] font-mono text-emerald-400 block">+3.8% esta semana</span>
+              <span className="text-[11px] font-mono text-neutral-500 block">
+                {hasData ? 'Sobre tus respuestas reales' : 'Aún sin práctica'}
+              </span>
             </div>
 
             {/* Metric 2 */}
@@ -176,20 +184,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             {/* Metric 3 */}
             <div className="border border-neutral-800 bg-neutral-950 p-4 space-y-1">
-              <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider block">RACHA COGNITIVA</span>
+              <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider block">RACHA DIARIA</span>
               <div className="text-2xl sm:text-3xl font-mono font-bold text-neutral-100">
                 {profile.streakDays} <span className="text-sm font-normal text-neutral-500">días</span>
               </div>
-              <span className="text-[11px] font-mono text-amber-400 block">Récord activo</span>
+              <span className="text-[11px] font-mono text-neutral-500 block">
+                {profile.streakDays > 0 ? 'Seguí así' : 'Empezá hoy'}
+              </span>
             </div>
 
             {/* Metric 4 */}
             <div className="border border-neutral-800 bg-neutral-950 p-4 space-y-1">
-              <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider block">NIVEL MCER ACTIVO</span>
+              <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider block">NIVEL MCER</span>
               <div className="text-2xl sm:text-3xl font-mono font-bold text-neutral-100 uppercase">
-                {profile.level === 'unassigned' ? 'B1' : profile.level}
+                {profile.level === 'unassigned' ? '—' : profile.level}
               </div>
-              <span className="text-[11px] font-mono text-neutral-400 block">L1: {profile.l1}</span>
+              <span className="text-[11px] font-mono text-neutral-400 block">
+                {profile.level === 'unassigned' ? 'Hacé el diagnóstico' : `L1: ${profile.l1}`}
+              </span>
             </div>
           </div>
 
@@ -231,28 +243,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
             <div className="flex flex-wrap gap-2 pt-1">
               <button
-                onClick={onStartRecommendedSession}
+                onClick={onStartDailyChallenge}
                 className="flex items-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-950 font-bold px-4 py-2 text-xs tracking-wider transition-colors"
               >
                 <Play className="w-3.5 h-3.5 fill-neutral-950" />
-                <span>EMPEZAR DESAFÍO</span>
+                <span>{challengeDone ? 'REPETIR DESAFÍO' : 'EMPEZAR DESAFÍO'}</span>
               </button>
-              {!challengeDone && (
-                <button
-                  onClick={completeChallenge}
-                  className="flex items-center gap-2 border border-neutral-800 bg-neutral-950 hover:border-neutral-600 text-neutral-300 px-4 py-2 text-xs transition-colors"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Marcar como completado</span>
-                </button>
-              )}
+              <span className="text-[10px] text-neutral-600 font-mono self-center">
+                Se marca como cumplido al terminarlo.
+              </span>
             </div>
           </div>
 
           {/* Secondary Quick Action Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <button
-              onClick={() => onNavigate('training', 'grafias')}
+              onClick={() => onStartFocusSession('grafias')}
               className="border border-emerald-900/60 bg-emerald-950/10 hover:bg-emerald-950/30 p-3 text-left font-mono text-xs transition-colors group"
             >
               <Type className="w-4 h-4 text-emerald-400 mb-1.5" />
@@ -297,7 +303,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </button>
           </div>
 
-          {/* Profile & Errors Section */}
+          {/* Profile & Errors Section — solo con datos reales */}
+          {!hasData && (
+            <div className="border border-neutral-800 bg-neutral-950 p-8 text-center space-y-3">
+              <span className="font-mono text-xs font-bold tracking-wider text-neutral-300 uppercase block">
+                Tu perfil ortográfico aparecerá acá
+              </span>
+              <p className="text-xs font-sans text-neutral-400 max-w-md mx-auto leading-relaxed">
+                Todavía no registramos ninguna respuesta. Hacé tu primera sesión y el laboratorio empezará a medir tu precisión real por categoría —sin inventar nada.
+              </p>
+              <button
+                onClick={onStartRecommendedSession}
+                className="inline-flex items-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-950 font-bold px-5 py-2.5 text-xs tracking-wider transition-colors"
+              >
+                <Play className="w-3.5 h-3.5 fill-neutral-950" />
+                <span>EMPEZAR PRIMERA SESIÓN</span>
+              </button>
+            </div>
+          )}
+
+          {hasData && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Orthographic Profile Bars (7 Cols) */}
             <div className="lg:col-span-7 border border-neutral-800 bg-neutral-950 p-6 space-y-5">
@@ -383,16 +408,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
 
                 <div className="space-y-2.5">
-                  {profile.topErrorPatterns.map((pat, idx) => (
-                    <div key={idx} className="border border-neutral-900 bg-neutral-900/50 p-3 flex items-start justify-between gap-2">
+                  {recurrentErrors.length === 0 && (
+                    <p className="text-xs text-neutral-500 font-sans">
+                      Todavía no hay patrones de error registrados. Aparecerán acá cuando falles alguna palabra.
+                    </p>
+                  )}
+                  {recurrentErrors.slice(0, 3).map(({ srsItem, wordItem }, idx) => (
+                    <div key={srsItem.wordId} className="border border-neutral-900 bg-neutral-900/50 p-3 flex items-start justify-between gap-2">
                       <div className="space-y-1">
-                        <span className="font-mono text-[10px] text-neutral-500 block">PATRÓN 0{idx + 1}</span>
-                        <p className="text-xs text-neutral-200 font-sans font-medium">{pat}</p>
+                        <span className="font-mono text-[10px] text-neutral-500 block">
+                          PATRÓN 0{idx + 1} · {CATEGORY_LABEL[wordItem.category] || wordItem.category}
+                        </span>
+                        <p className="text-xs text-neutral-200 font-sans font-medium">
+                          <span className="font-mono text-amber-300">{wordItem.word}</span> — {wordItem.rule}
+                        </p>
                       </div>
                       <button
-                        onClick={() => onNavigate('training')}
+                        onClick={() => handleStartFocusedTraining(wordItem.id)}
                         className="p-1 text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 transition-colors shrink-0"
-                        title="Entrenar este patrón"
+                        title="Repasar esta palabra"
                       >
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
@@ -407,6 +441,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
           </div>
+          )}
 
           {/* Specialized Training Modules Grid */}
           <div className="space-y-3">
@@ -426,7 +461,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono text-xs">
               {/* Module 1 — el centro */}
               <div
-                onClick={() => onNavigate('training', 'grafias')}
+                onClick={() => onStartFocusSession('grafias')}
                 className="border border-emerald-900/60 bg-emerald-950/10 p-4 hover:border-emerald-700 transition-colors cursor-pointer space-y-2"
               >
                 <div className="text-emerald-400 text-[10px]">NÚCLEO // GRAFÍAS</div>
