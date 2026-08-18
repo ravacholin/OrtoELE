@@ -7,75 +7,32 @@ export const DEFAULT_USER_PROFILE: UserProfile = {
   level: 'unassigned',
   l1: 'español',
   goal: 'mejorar ortografía general',
-  globalPrecision: 82.5,
-  streakDays: 1,
+  // Honestidad de datos: un perfil nuevo arranca en cero. Todas estas
+  // métricas se llenan con la práctica real (no se inventan valores).
+  globalPrecision: 0,
+  streakDays: 0,
   lastActiveDate: new Date().toISOString(),
-  sessionsCompleted: 1,
-  wordsDominated: 18,
-  wordsInTraining: 14,
+  sessionsCompleted: 0,
+  wordsDominated: 0,
+  wordsInTraining: 0,
   errorProfile: {
-    accentuation: 74,
-    spellings: 81,
-    punctuation: 62,
-    morphology: 70,
-    capitals: 88,
+    accentuation: 0,
+    spellings: 0,
+    punctuation: 0,
+    morphology: 0,
+    capitals: 0,
   },
-  topErrorPatterns: [
-    'Acentuación de hiatos (vocal cerrada tónica)',
-    'Alternancia G / J en conjugaciones verbales',
-    'Coma en conectores contraargumentativos'
-  ],
+  topErrorPatterns: [],
   onboardingCompleted: false,
   dailyChallengeDoneToday: false,
   escapeRoomsCleared: [],
 };
 
-// Initial Seed items for SRS
+// Items SRS iniciales: vacío. Cada ítem se crea la primera vez que el
+// estudiante lo practica (ver `recordAttempt`), en estado NUEVO. No se
+// siembran estados/puntajes ficticios.
 export function getInitialSrsItems(): Record<string, SrsItemState> {
-  const items: Record<string, SrsItemState> = {};
-  
-  ORTHOGRAPHY_WORD_BANK.forEach((wordItem, idx) => {
-    let state: SrsState = 'NUEVO';
-    let intervalDays = 1;
-    let consecutiveSuccesses = 0;
-    let dominated = 0;
-
-    if (idx === 0) {
-      state = 'ESTABLE';
-      intervalDays = 4;
-      consecutiveSuccesses = 3;
-      dominated = 85;
-    } else if (idx === 1) {
-      state = 'APRENDIENDO';
-      intervalDays = 2;
-      consecutiveSuccesses = 1;
-      dominated = 60;
-    } else if (idx === 2) {
-      state = 'INCIERTO';
-      intervalDays = 1;
-      consecutiveSuccesses = 0;
-      dominated = 45;
-    }
-
-    items[wordItem.id] = {
-      wordId: wordItem.id,
-      word: wordItem.word,
-      category: wordItem.category,
-      state,
-      intervalDays,
-      easeFactor: 2.5,
-      consecutiveSuccesses,
-      totalAttempts: consecutiveSuccesses > 0 ? consecutiveSuccesses + 1 : 0,
-      mistakesCount: state === 'INCIERTO' ? 2 : 0,
-      lastReviewed: new Date().toISOString(),
-      nextReviewDate: new Date(Date.now() + intervalDays * 86400000).toISOString(),
-      ruleKnowledgeScore: dominated > 0 ? dominated + 5 : 50,
-      automatedSpellingScore: dominated,
-      retentionStreak: consecutiveSuccesses,
-    };
-  });
-
-  return items;
+  return {};
 }
 
 export class SrsManager {
@@ -273,7 +230,8 @@ export class SrsManager {
     newProfile.wordsInTraining = inTraining;
 
     if (totalAttempts > 0) {
-      const precision = Math.max(40, Math.min(100, Math.round(((totalAttempts - totalMistakes) / totalAttempts) * 100 * 10) / 10));
+      // Precisión real = aciertos / intentos. Sin pisos artificiales.
+      const precision = Math.max(0, Math.min(100, Math.round(((totalAttempts - totalMistakes) / totalAttempts) * 100 * 10) / 10));
       newProfile.globalPrecision = precision;
     }
 
@@ -285,7 +243,22 @@ export class SrsManager {
     });
 
     this.saveProfile(newProfile);
+  }
+
+  /** ¿El estudiante tiene al menos un intento registrado? Sirve para que
+   *  la UI muestre estados vacíos honestos en vez de métricas en cero que
+   *  parezcan un mal desempeño. */
+  public hasAnyAttempts(): boolean {
+    return Object.values(this.srsItems).some((i) => i.totalAttempts > 0);
+  }
+
+  /** Cierra una sesión: incrementa el contador real de sesiones y guarda
+   *  un único snapshot (no uno por intento). Llamar al terminar. */
+  public completeSession(): UserProfile {
+    const newProfile = { ...this.profile, sessionsCompleted: this.profile.sessionsCompleted + 1 };
+    this.saveProfile(newProfile);
     this.recordSessionSnapshot();
+    return this.getProfile();
   }
 
   public recordSessionSnapshot() {
@@ -301,7 +274,7 @@ export class SrsManager {
     const todayStr = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
 
     storageService.saveSessionSnapshot({
-      sessionNumber: this.profile.sessionsCompleted + 1,
+      sessionNumber: this.profile.sessionsCompleted,
       dateLabel: todayStr,
       wordsDominated: dominated,
       wordsInTraining: inTraining,
@@ -320,75 +293,19 @@ export class SrsManager {
     globalPrecision: number;
     retentionRate: number;
   }[] {
+    // Solo datos reales: los snapshots que el estudiante haya generado.
+    // Si todavía no hay historia, se devuelve vacío y la UI muestra un
+    // estado honesto ("aún no hay datos suficientes").
     const rawSnapshots = storageService.getSessionSnapshots();
-    
-    if (rawSnapshots.length >= 3) {
-      return rawSnapshots.map((s, idx) => ({
-        sessionLabel: s.dateLabel || `Sesión ${s.sessionNumber || idx + 1}`,
-        sessionNumber: s.sessionNumber || idx + 1,
-        wordsDominated: s.wordsDominated,
-        wordsInTraining: s.wordsInTraining,
-        wordsUncertain: s.wordsUncertain,
-        globalPrecision: s.globalPrecision,
-        retentionRate: s.retentionRate || 85,
-      }));
-    }
-
-    // Seed realistic pedagogical progression leading to current profile state
-    const currentDominated = this.profile.wordsDominated;
-    const currentInTraining = this.profile.wordsInTraining;
-    const currentPrecision = this.profile.globalPrecision;
-    const currentSession = this.profile.sessionsCompleted + 1;
-
-    const baseData = [
-      {
-        sessionLabel: 'Sesión 1',
-        sessionNumber: Math.max(1, currentSession - 4),
-        wordsDominated: Math.max(0, currentDominated - 4),
-        wordsInTraining: Math.max(2, currentInTraining - 5),
-        wordsUncertain: 4,
-        globalPrecision: Math.max(50, currentPrecision - 14),
-        retentionRate: 68,
-      },
-      {
-        sessionLabel: 'Sesión 2',
-        sessionNumber: Math.max(2, currentSession - 3),
-        wordsDominated: Math.max(1, currentDominated - 3),
-        wordsInTraining: Math.max(4, currentInTraining - 3),
-        wordsUncertain: 3,
-        globalPrecision: Math.max(58, currentPrecision - 10),
-        retentionRate: 74,
-      },
-      {
-        sessionLabel: 'Sesión 3',
-        sessionNumber: Math.max(3, currentSession - 2),
-        wordsDominated: Math.max(2, currentDominated - 2),
-        wordsInTraining: Math.max(5, currentInTraining - 1),
-        wordsUncertain: 3,
-        globalPrecision: Math.max(65, currentPrecision - 6),
-        retentionRate: 80,
-      },
-      {
-        sessionLabel: 'Sesión 4',
-        sessionNumber: Math.max(4, currentSession - 1),
-        wordsDominated: Math.max(3, currentDominated - 1),
-        wordsInTraining: currentInTraining,
-        wordsUncertain: 2,
-        globalPrecision: Math.max(70, currentPrecision - 2),
-        retentionRate: 85,
-      },
-      {
-        sessionLabel: `Sesión ${currentSession} (Actual)`,
-        sessionNumber: currentSession,
-        wordsDominated: currentDominated,
-        wordsInTraining: currentInTraining,
-        wordsUncertain: Object.values(this.srsItems).filter(i => i.state === 'INCIERTO').length,
-        globalPrecision: currentPrecision,
-        retentionRate: Math.min(96, Math.max(75, Math.round(currentPrecision * 0.95))),
-      },
-    ];
-
-    return baseData;
+    return rawSnapshots.map((s, idx) => ({
+      sessionLabel: s.dateLabel || `Sesión ${s.sessionNumber || idx + 1}`,
+      sessionNumber: s.sessionNumber || idx + 1,
+      wordsDominated: s.wordsDominated,
+      wordsInTraining: s.wordsInTraining,
+      wordsUncertain: s.wordsUncertain,
+      globalPrecision: s.globalPrecision,
+      retentionRate: s.retentionRate || 0,
+    }));
   }
 
   public getForgettingCurveData(): {

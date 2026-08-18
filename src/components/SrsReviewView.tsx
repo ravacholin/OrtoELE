@@ -11,13 +11,28 @@ interface SrsReviewViewProps {
 }
 
 export const SrsReviewView: React.FC<SrsReviewViewProps> = ({ onOpenCoach }) => {
-  const [srsItems, setSrsItems] = useState<Record<string, SrsItemState>>(srsManager.getSrsItems());
-  const dueItems: SrsItemState[] = Object.values(srsItems);
+  // Cola real de repasos vencidos (respeta nextReviewDate / estado INCIERTO),
+  // fijada al montar para que sea una sesión finita y estable.
+  const [dueItems] = useState<SrsItemState[]>(() => srsManager.getDueReviewItems());
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isRevealed, setIsRevealed] = useState(false);
   const [typedInput, setTypedInput] = useState('');
   const [sessionCompleted, setSessionCompleted] = useState(false);
+  const [correctCount, setCorrectCount] = useState(0);
+
+  const formatNextReview = (): string => {
+    const items = Object.values(srsManager.getSrsItems());
+    const future = items
+      .map((i) => new Date(i.nextReviewDate).getTime())
+      .filter((t) => !Number.isNaN(t) && t > Date.now())
+      .sort((a, b) => a - b);
+    if (future.length === 0) return '—';
+    const days = Math.round((future[0] - Date.now()) / 86400000);
+    if (days <= 0) return 'Hoy';
+    if (days === 1) return 'Mañana';
+    return `En ${days} días`;
+  };
 
   const currentItemState: SrsItemState | undefined = dueItems[currentIndex % Math.max(1, dueItems.length)];
   const currentWordBankItem: OrthoWordItem = ORTHOGRAPHY_WORD_BANK.find(w => w.id === currentItemState?.wordId) || {
@@ -48,13 +63,14 @@ export const SrsReviewView: React.FC<SrsReviewViewProps> = ({ onOpenCoach }) => 
     if (!currentItemState) return;
 
     srsManager.recordAttempt(currentItemState.wordId, quality, isRevealed ? 1 : 0);
-    setSrsItems(srsManager.getSrsItems());
+    if (quality >= 3) setCorrectCount((c) => c + 1);
 
     if (currentIndex + 1 < dueItems.length) {
       setCurrentIndex(c => c + 1);
       setIsRevealed(false);
       setTypedInput('');
     } else {
+      srsManager.completeSession();
       setSessionCompleted(true);
     }
   };
@@ -67,7 +83,28 @@ export const SrsReviewView: React.FC<SrsReviewViewProps> = ({ onOpenCoach }) => 
   const exampleSentence = currentWordBankItem.exampleSentence || currentWordBankItem.examples?.[0]?.sentence || `Observamos la forma de ${currentWordBankItem.word}.`;
   const wordMeaning = currentWordBankItem.meaning || currentWordBankItem.semanticField || currentWordBankItem.rule;
 
+  if (dueItems.length === 0) {
+    return (
+      <div className="max-w-3xl mx-auto py-16 px-4 font-mono text-center space-y-6">
+        <div className="border border-neutral-800 bg-neutral-950 p-8 space-y-4">
+          <div className="w-12 h-12 bg-neutral-900 border border-neutral-800 rounded-full flex items-center justify-center mx-auto text-emerald-400">
+            <ShieldCheck className="w-6 h-6" />
+          </div>
+          <div className="space-y-1">
+            <span className="text-[10px] text-neutral-500 uppercase tracking-widest block">REPASO ESPACIADO</span>
+            <h2 className="text-2xl font-bold font-sans text-neutral-100">No tenés repasos pendientes</h2>
+            <p className="text-xs font-sans text-neutral-400 max-w-md mx-auto leading-relaxed">
+              Cuando practiques palabras nuevas, el motor SRS las programará para repaso en el momento óptimo. Volvé cuando tengas ítems vencidos, o hacé una sesión de práctica desde el inicio.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (sessionCompleted) {
+    const srsAccuracy = Math.round((correctCount / Math.max(1, dueItems.length)) * 100);
+    const nextReviewLabel = formatNextReview();
     return (
       <div className="max-w-3xl mx-auto py-12 px-4 font-mono space-y-6 text-center">
         <div className="border border-neutral-800 bg-neutral-950 p-8 space-y-6">
@@ -92,11 +129,11 @@ export const SrsReviewView: React.FC<SrsReviewViewProps> = ({ onOpenCoach }) => 
             </div>
             <div className="bg-neutral-900 p-3 border border-neutral-800">
               <span className="text-[10px] text-neutral-500 block">PRECISIÓN SRS</span>
-              <span className="text-xl font-bold text-emerald-400">92%</span>
+              <span className="text-xl font-bold text-emerald-400">{srsAccuracy}%</span>
             </div>
             <div className="bg-neutral-900 p-3 border border-neutral-800 col-span-2 sm:col-span-1">
               <span className="text-[10px] text-neutral-500 block">PRÓXIMO REPASO</span>
-              <span className="text-xl font-bold text-neutral-100">Mañana</span>
+              <span className="text-xl font-bold text-neutral-100">{nextReviewLabel}</span>
             </div>
           </div>
 

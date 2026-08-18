@@ -260,3 +260,56 @@ export interface DailyChallenge {
   focusCategories: OrthoCategory[];
   segments: DailyChallengeSegment[];
 }
+
+/* ============================================================
+ * MOTOR DE SESIÓN — sesiones finitas, adaptativas y con resultados
+ * ============================================================
+ * Reemplaza los bucles infinitos `item[i % length]` por una sesión
+ * con principio, medio y fin: se seleccionan ítems de forma
+ * adaptativa (repasos vencidos → errores → nuevos al nivel) y cada
+ * paso alimenta el motor SRS con un intento real.
+ */
+
+// Formatos de ejercicio que puede generar el motor procedural.
+export type ExerciseKind =
+  | 'spelling-choice'   // elegir la forma correcta de la palabra
+  | 'fill-grapheme'     // completar la letra dudosa (b/v, g/j, h, c/s/z…)
+  | 'error-spotting'    // detectar la palabra mal escrita en una oración
+  | 'accent-placement'  // marcar la sílaba tónica / decidir la tilde
+  | 'contrast'          // discriminar un contraste mínimo
+  | 'dictation';        // escuchar y transcribir
+
+// Por qué se eligió este paso (para priorizar y para el feedback final).
+export type StepReason = 'due' | 'mistake' | 'new' | 'challenge';
+
+export type SessionOrigin = 'recommended' | 'daily' | 'focus' | 'mistakes';
+
+export interface SessionStep {
+  id: string;             // id único del paso (incluye semilla)
+  kind: ExerciseKind;
+  reason: StepReason;
+  category: OrthoCategory;
+  wordId?: string;        // ref a un ítem del banco léxico
+  contrastId?: string;    // ref a un contraste mínimo
+  dictationId?: string;   // ref a un ítem de dictado
+  label: string;          // etiqueta legible (palabra o tema)
+}
+
+export interface StepResult {
+  stepId: string;
+  wordId?: string;
+  category: OrthoCategory;
+  label: string;
+  correct: boolean;
+  hints: number;
+  quality: number; // 1-5, alimenta srsManager.recordAttempt
+}
+
+export interface SessionPlan {
+  id: string;
+  seed: string;
+  origin: SessionOrigin;
+  focus?: OrthoCategory | 'grafias' | 'mixed';
+  title: string;
+  steps: SessionStep[];
+}

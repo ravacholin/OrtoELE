@@ -1,5 +1,33 @@
 # ORTOGRAFÍA LAB — Plan maestro profundizado (100% procedural, sin IA)
 
+> **Actualización (Fase 1 — motor de sesión honesto y adaptativo).** Se
+> reconstruyó de raíz la lógica de aprendizaje sin abandonar el diseño
+> procedural/offline:
+> - **Sesiones finitas y adaptativas** (`src/utils/sessionEngine.ts`,
+>   `src/components/SessionRunner.tsx`): reemplazan los bucles infinitos
+>   `item[i % length]`. Cada sesión tiene principio → ejercicios paso a paso
+>   (con barra de progreso) → **pantalla de resultados real**. La selección
+>   prioriza repasos vencidos (SRS) → errores recurrentes → ítems nuevos
+>   filtrados por el **nivel MCER** del estudiante, e interleava categorías.
+> - **Todos los ejercicios alimentan el SRS**: cada paso llama
+>   `srsManager.recordAttempt`.
+> - **Más variedad de formatos** desde los mismos metadatos
+>   (`proceduralEngine.ts`): completar la grafía dudosa
+>   (`tryGenerateFillGrapheme`), cazar el error en contexto
+>   (`generateErrorSpotting`), marcar la sílaba tónica
+>   (`generateAccentPlacement`) y evaluación tolerante que distingue el
+>   "casi por tilde" del error de grafía (`evaluateAnswer`).
+> - **Honestidad de datos**: se eliminaron el perfil por defecto inflado, los
+>   estados SRS sembrados y las curvas/métricas fabricadas. Un usuario nuevo
+>   arranca en cero y la UI muestra estados vacíos honestos hasta tener datos
+>   reales.
+> - **Desafío del día jugable**: se ejecuta como secuencia real y solo se marca
+>   cumplido al terminarlo.
+>
+> Próximas fases (previstas): cablear la **escritura libre** (`analyzeText`) y
+> los **escape rooms** ya existentes; dictado con alineación por distancia de
+> edición; ampliar contenido **B2/C1/C2**; y gamificación honesta.
+
 > **Actualización (foco en grafías).** La app se reorganizó para que **el
 > centro sea la ortografía de las palabras** (cómo se escriben: b/v, s/c/z,
 > g/j, h, ll/y, r/rr…). El entrenamiento abre en un módulo dedicado de

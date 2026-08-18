@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { UserProfile, OrthoWordItem } from './types';
+import { UserProfile, OrthoWordItem, SessionPlan } from './types';
 import { srsManager } from './utils/srsEngine';
+import { buildSession, buildMistakeSession, buildSessionFromDaily, SessionFocus } from './utils/sessionEngine';
+import { assembleDailyChallenge, todayKey } from './utils/proceduralEngine';
 import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
 import { OnboardingModal } from './components/OnboardingModal';
 import { DiagnosticView } from './components/DiagnosticView';
 import { TrainingHub } from './components/TrainingHub';
+import { SessionRunner } from './components/SessionRunner';
 import { SrsReviewView } from './components/SrsReviewView';
 import { VocabularyLexicon } from './components/VocabularyLexicon';
 import { SocraticCoachDrawer } from './components/SocraticCoachDrawer';
@@ -14,6 +17,11 @@ export default function App() {
   const [profile, setProfile] = useState<UserProfile>(srsManager.getProfile());
   const [currentView, setCurrentView] = useState<string>('dashboard');
   const [trainingSubcategory, setTrainingSubcategory] = useState<string>('grafias');
+
+  // Sesión activa (motor de sesión). Cuando no es null, se muestra el runner.
+  const [activeSession, setActiveSession] = useState<SessionPlan | null>(null);
+
+  const refreshProfile = () => setProfile(srsManager.getProfile());
 
   // Onboarding Modal state
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(!profile.onboardingCompleted);
@@ -59,9 +67,45 @@ export default function App() {
     setIsCoachOpen(true);
   };
 
+  // ---- Motor de sesión ----
+  const startSession = (plan: SessionPlan) => {
+    setActiveSession(plan);
+    setCurrentView('session');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleStartRecommendedSession = () => {
-    setTrainingSubcategory('grafias');
-    setCurrentView('training');
+    startSession(buildSession({ origin: 'recommended', size: 10 }));
+  };
+
+  const handleStartFocusSession = (focus: SessionFocus) => {
+    startSession(buildSession({ origin: 'focus', focus, size: 10 }));
+  };
+
+  const handleStartDailyChallenge = () => {
+    const daily = assembleDailyChallenge(todayKey(), profile.errorProfile);
+    startSession(buildSessionFromDaily(daily));
+  };
+
+  const handleStartMistakeReview = (wordIds: string[]) => {
+    startSession(buildMistakeSession(wordIds));
+  };
+
+  const handleSessionComplete = (plan: SessionPlan) => {
+    // El desafío del día solo se marca cumplido al terminarlo de verdad.
+    if (plan.origin === 'daily') {
+      try {
+        localStorage.setItem(`ortolab-daily-${todayKey()}`, 'done');
+      } catch {
+        /* almacenamiento no disponible */
+      }
+    }
+  };
+
+  const handleExitSession = () => {
+    setActiveSession(null);
+    refreshProfile();
+    setCurrentView('dashboard');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -89,7 +133,19 @@ export default function App() {
             profile={profile}
             onNavigate={handleNavigate}
             onStartRecommendedSession={handleStartRecommendedSession}
+            onStartDailyChallenge={handleStartDailyChallenge}
+            onStartFocusSession={handleStartFocusSession}
             onOpenCoach={handleOpenCoach}
+          />
+        )}
+
+        {currentView === 'session' && activeSession && (
+          <SessionRunner
+            plan={activeSession}
+            onExit={handleExitSession}
+            onProfileChange={refreshProfile}
+            onComplete={handleSessionComplete}
+            onStartMistakeReview={handleStartMistakeReview}
           />
         )}
 
