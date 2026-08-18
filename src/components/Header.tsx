@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { UserProfile } from '../types';
-import { Volume2, Sparkles, Terminal, BookOpen, PenTool, RotateCcw, Award, CheckCircle2, Users, Flame, Wifi, WifiOff } from 'lucide-react';
+import { Volume2, Sparkles, Terminal, BookOpen, RotateCcw, CheckCircle2, Flame, WifiOff } from 'lucide-react';
 import { speechService } from '../utils/speech';
 import { swManager } from '../utils/serviceWorkerRegistration';
 
@@ -38,14 +38,11 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const navItems = [
-    { id: 'dashboard', label: 'DASHBOARD', icon: Terminal },
-    { id: 'training', label: 'ENTRENAR', icon: BookOpen },
-    { id: 'writing', label: 'ESCRIBIR', icon: PenTool },
+    { id: 'dashboard', label: 'INICIO', icon: Terminal },
+    { id: 'training', label: 'ENTRENAR ORTOGRAFÍA', icon: BookOpen },
     { id: 'srs', label: 'REPASAR (SRS)', icon: RotateCcw },
     { id: 'diagnostic', label: 'DIAGNÓSTICO', icon: CheckCircle2 },
     { id: 'lexicon', label: 'VOCABULARIO', icon: Sparkles },
-    { id: 'escape', label: 'ESCAPE ORTO', icon: Award },
-    { id: 'teacher', label: 'DOCENTE', icon: Users },
   ];
 
   return (
@@ -67,7 +64,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
             <div className="hidden md:flex items-center space-x-1.5 text-xs text-neutral-500 font-mono">
               <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-              <span>MOTOR PROCEDURAL V2.0 · SIN IA</span>
+              <span>GRAFÍAS: B/V · S/C/Z · G/J · H</span>
             </div>
           </div>
 

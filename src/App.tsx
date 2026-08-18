@@ -6,17 +6,14 @@ import { Dashboard } from './components/Dashboard';
 import { OnboardingModal } from './components/OnboardingModal';
 import { DiagnosticView } from './components/DiagnosticView';
 import { TrainingHub } from './components/TrainingHub';
-import { FreeWritingLab } from './components/FreeWritingLab';
 import { SrsReviewView } from './components/SrsReviewView';
 import { VocabularyLexicon } from './components/VocabularyLexicon';
-import { EscapeRoomView } from './components/EscapeRoomView';
-import { TeacherMode } from './components/TeacherMode';
 import { SocraticCoachDrawer } from './components/SocraticCoachDrawer';
 
 export default function App() {
   const [profile, setProfile] = useState<UserProfile>(srsManager.getProfile());
   const [currentView, setCurrentView] = useState<string>('dashboard');
-  const [trainingSubcategory, setTrainingSubcategory] = useState<string>('contrastes');
+  const [trainingSubcategory, setTrainingSubcategory] = useState<string>('grafias');
 
   // Onboarding Modal state
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(!profile.onboardingCompleted);
@@ -63,7 +60,7 @@ export default function App() {
   };
 
   const handleStartRecommendedSession = () => {
-    setTrainingSubcategory('contrastes');
+    setTrainingSubcategory('grafias');
     setCurrentView('training');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -104,13 +101,6 @@ export default function App() {
           />
         )}
 
-        {currentView === 'writing' && (
-          <FreeWritingLab
-            profile={profile}
-            onOpenCoach={handleOpenCoach}
-          />
-        )}
-
         {currentView === 'srs' && (
           <SrsReviewView
             profile={profile}
@@ -131,19 +121,6 @@ export default function App() {
             profile={profile}
             onOpenCoach={handleOpenCoach}
             onTrainWord={handleTrainWordFromLexicon}
-          />
-        )}
-
-        {currentView === 'escape' && (
-          <EscapeRoomView
-            profile={profile}
-            onOpenCoach={handleOpenCoach}
-          />
-        )}
-
-        {currentView === 'teacher' && (
-          <TeacherMode
-            profile={profile}
           />
         )}
       </main>
@@ -174,8 +151,8 @@ export default function App() {
       {/* Footer */}
       <footer className="border-t border-neutral-900 bg-neutral-950 py-6 text-center text-xs font-mono text-neutral-600">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>ORTOGRAFÍA LAB · Laboratorio Cognitivo de Adquisición Ortográfica ELE</span>
-          <span className="text-neutral-500">100% Procedural · Sin IA · Recuperación Activa · Memoria Ideovisual · Repetición Espaciada</span>
+          <span>ORTOGRAFÍA LAB · Cómo se escriben las palabras en español · ELE A1–C2</span>
+          <span className="text-neutral-500">Grafías (b/v · s/c/z · g/j · h) primero · Tildes · Puntuación · Mayúsculas</span>
         </div>
       </footer>
     </div>

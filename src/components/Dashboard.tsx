@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { UserProfile, OrthoWordItem, SrsItemState } from '../types';
-import { 
-  Play, CheckCircle2, RotateCcw, PenTool, Sparkles, BookOpen, Award, Users, 
-  AlertTriangle, ArrowRight, Eye, Volume2, Target, ShieldAlert, Brain, Zap, Filter, TrendingUp
+import {
+  Play, CheckCircle2, RotateCcw, Sparkles, BookOpen,
+  AlertTriangle, ArrowRight, Eye, Volume2, Target, ShieldAlert, Zap, Filter, Type
 } from 'lucide-react';
 import { srsManager } from '../utils/srsEngine';
 import { speechService } from '../utils/speech';
 import { assembleDailyChallenge, todayKey } from '../utils/proceduralEngine';
-import { RetentionAnalyticsChart } from './RetentionAnalyticsChart';
 
 const CATEGORY_LABEL: Record<string, string> = {
   accentuation: 'Acentuación',
@@ -30,7 +29,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onStartRecommendedSession,
   onOpenCoach,
 }) => {
-  const [dashboardTab, setDashboardTab] = useState<'overview' | 'analytics' | 'recurrent_errors'>('overview');
+  const [dashboardTab, setDashboardTab] = useState<'overview' | 'recurrent_errors'>('overview');
   const [errorCategoryFilter, setErrorCategoryFilter] = useState<string>('all');
 
   const recurrentErrors = srsManager.getDetailedRecurrentMistakes();
@@ -93,18 +92,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </button>
 
           <button
-            onClick={() => setDashboardTab('analytics')}
-            className={`px-4 py-2 text-xs font-bold transition-all border flex items-center space-x-2 ${
-              dashboardTab === 'analytics'
-                ? 'border-emerald-400 bg-emerald-400 text-neutral-950 shadow-sm'
-                : 'border-neutral-800 bg-neutral-950 text-emerald-400 hover:border-emerald-800/80'
-            }`}
-          >
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span>CURVA DE OLVIDO & ANALYTICS</span>
-          </button>
-
-          <button
             onClick={() => setDashboardTab('recurrent_errors')}
             className={`px-4 py-2 text-xs font-bold transition-all border flex items-center space-x-2 ${
               dashboardTab === 'recurrent_errors'
@@ -134,10 +121,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <span>OBJETIVO: {profile.goal.toUpperCase()}</span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-100 font-sans">
-                Entrená tu español escrito.
+                Escribí bien las palabras.
               </h1>
               <p className="text-sm text-neutral-400 max-w-2xl leading-relaxed font-sans">
-                Laboratorio cognitivo de adquisición ortográfica. Recuperación activa, contrastes mínimos y memoria ideovisual sin memorización pasiva de reglas.
+                El centro es la ortografía: <span className="text-neutral-200">b/v, s/c/z, g/j, h</span> y demás grafías dudosas. Las tildes, la puntuación y las mayúsculas están, pero como apoyo secundario.
               </p>
             </div>
 
@@ -161,7 +148,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </button>
               ) : (
                 <div className="text-[11px] font-mono text-neutral-500 text-center sm:text-left lg:text-center">
-                  Recomendado: 8 palabras + 3 contrastes + 1 dictado
+                  Recomendado: grafías b/v · s/c/z · g/j · h
                 </div>
               )}
             </div>
@@ -263,14 +250,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           {/* Secondary Quick Action Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <button
-              onClick={() => onNavigate('diagnostic')}
-              className="border border-neutral-800 bg-neutral-950 hover:bg-neutral-900 p-3 text-left font-mono text-xs transition-colors group"
+              onClick={() => onNavigate('training', 'grafias')}
+              className="border border-emerald-900/60 bg-emerald-950/10 hover:bg-emerald-950/30 p-3 text-left font-mono text-xs transition-colors group"
             >
-              <CheckCircle2 className="w-4 h-4 text-neutral-400 group-hover:text-neutral-200 mb-1.5" />
-              <span className="text-neutral-300 font-bold block">Diagnóstico</span>
-              <span className="text-[10px] text-neutral-500">Evaluar nivel</span>
+              <Type className="w-4 h-4 text-emerald-400 mb-1.5" />
+              <span className="text-neutral-200 font-bold block">Grafías</span>
+              <span className="text-[10px] text-neutral-500">b/v · s/c/z · g/j · h</span>
             </button>
 
             <button
@@ -279,16 +266,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             >
               <BookOpen className="w-4 h-4 text-neutral-400 group-hover:text-neutral-200 mb-1.5" />
               <span className="text-neutral-300 font-bold block">Entrenar</span>
-              <span className="text-[10px] text-neutral-500">Módulos activos</span>
-            </button>
-
-            <button
-              onClick={() => onNavigate('writing')}
-              className="border border-neutral-800 bg-neutral-950 hover:bg-neutral-900 p-3 text-left font-mono text-xs transition-colors group"
-            >
-              <PenTool className="w-4 h-4 text-neutral-400 group-hover:text-neutral-200 mb-1.5" />
-              <span className="text-neutral-300 font-bold block">Escribir</span>
-              <span className="text-[10px] text-neutral-500">Producción libre</span>
+              <span className="text-[10px] text-neutral-500">Todos los módulos</span>
             </button>
 
             <button
@@ -306,25 +284,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
             >
               <Sparkles className="w-4 h-4 text-neutral-400 group-hover:text-neutral-200 mb-1.5" />
               <span className="text-neutral-300 font-bold block">Vocabulario</span>
-              <span className="text-[10px] text-neutral-500">Lexicón mental</span>
+              <span className="text-[10px] text-neutral-500">Palabras del banco</span>
             </button>
 
             <button
-              onClick={() => onNavigate('escape')}
+              onClick={() => onNavigate('diagnostic')}
               className="border border-neutral-800 bg-neutral-950 hover:bg-neutral-900 p-3 text-left font-mono text-xs transition-colors group"
             >
-              <Award className="w-4 h-4 text-neutral-400 group-hover:text-neutral-200 mb-1.5" />
-              <span className="text-neutral-300 font-bold block">Escape Orto</span>
-              <span className="text-[10px] text-neutral-500">5 Cerraduras</span>
-            </button>
-
-            <button
-              onClick={() => onNavigate('teacher')}
-              className="border border-neutral-800 bg-neutral-950 hover:bg-neutral-900 p-3 text-left font-mono text-xs transition-colors group col-span-2 sm:col-span-1"
-            >
-              <Users className="w-4 h-4 text-neutral-400 group-hover:text-neutral-200 mb-1.5" />
-              <span className="text-neutral-300 font-bold block">Modo Docente</span>
-              <span className="text-[10px] text-neutral-500">Guías & L1</span>
+              <CheckCircle2 className="w-4 h-4 text-neutral-400 group-hover:text-neutral-200 mb-1.5" />
+              <span className="text-neutral-300 font-bold block">Diagnóstico</span>
+              <span className="text-[10px] text-neutral-500">Evaluar nivel</span>
             </button>
           </div>
 
@@ -340,25 +309,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
 
               <div className="space-y-3.5 font-mono text-xs">
+                {/* Grafías — el centro */}
+                <div>
+                  <div className="flex justify-between mb-1 text-neutral-100">
+                    <span className="font-bold">GRAFÍAS (B/V, S/C/Z, G/J, H...)</span>
+                    <span className="text-neutral-300">{profile.errorProfile.spellings}%</span>
+                  </div>
+                  <div className="text-emerald-500/80 tracking-tighter text-sm">
+                    {getProgressBar(profile.errorProfile.spellings)}
+                  </div>
+                </div>
+
                 {/* Acentuación */}
                 <div>
                   <div className="flex justify-between mb-1 text-neutral-300">
-                    <span>ACENTUACIÓN</span>
+                    <span>ACENTUACIÓN (TILDES)</span>
                     <span className="text-neutral-400">{profile.errorProfile.accentuation}%</span>
                   </div>
                   <div className="text-neutral-500 tracking-tighter text-sm">
                     {getProgressBar(profile.errorProfile.accentuation)}
-                  </div>
-                </div>
-
-                {/* Grafías */}
-                <div>
-                  <div className="flex justify-between mb-1 text-neutral-300">
-                    <span>GRAFÍAS (B/V, G/J, H...)</span>
-                    <span className="text-neutral-400">{profile.errorProfile.spellings}%</span>
-                  </div>
-                  <div className="text-neutral-500 tracking-tighter text-sm">
-                    {getProgressBar(profile.errorProfile.spellings)}
                   </div>
                 </div>
 
@@ -439,14 +408,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
 
-          {/* Cognitive Retention & Mastered Words Analytics Visualizer (Recharts) */}
-          <RetentionAnalyticsChart profile={profile} />
-
-          {/* Specialized Laboratory Modules Grid */}
+          {/* Specialized Training Modules Grid */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="font-mono text-xs font-bold uppercase tracking-wider text-neutral-400">
-                MÓDULOS DE ENTRENAMIENTO COGNITIVO
+                MÓDULOS DE ENTRENAMIENTO
               </span>
               <button
                 onClick={() => onNavigate('training')}
@@ -458,72 +424,49 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono text-xs">
-              {/* Module 1 */}
-              <div 
-                onClick={() => onNavigate('training', 'contrastes')}
-                className="border border-neutral-800 bg-neutral-950 p-4 hover:border-neutral-700 transition-colors cursor-pointer space-y-2"
+              {/* Module 1 — el centro */}
+              <div
+                onClick={() => onNavigate('training', 'grafias')}
+                className="border border-emerald-900/60 bg-emerald-950/10 p-4 hover:border-emerald-700 transition-colors cursor-pointer space-y-2"
               >
-                <div className="text-neutral-500 text-[10px]">01 // TRÍADAS & CONTRASTES</div>
-                <div className="text-sm font-bold text-neutral-200">médico / medico / medicó</div>
+                <div className="text-emerald-400 text-[10px]">NÚCLEO // GRAFÍAS</div>
+                <div className="text-sm font-bold text-neutral-100 flex items-center gap-2">
+                  <Type className="w-3.5 h-3.5 text-emerald-400" />
+                  ¿B o V? ¿S, C o Z? ¿G o J?
+                </div>
                 <p className="text-[11px] font-sans text-neutral-400 leading-normal">
-                  Inferí la relación entre forma gráfica, pronunciación prosódica, significado y función gramatical.
+                  Elegí la forma correcta de la palabra en contexto y fijá cómo se escribe.
                 </p>
               </div>
 
               {/* Module 2 */}
-              <div 
+              <div
                 onClick={() => onNavigate('training', 'fotografia')}
                 className="border border-neutral-800 bg-neutral-950 p-4 hover:border-neutral-700 transition-colors cursor-pointer space-y-2"
               >
-                <div className="text-neutral-500 text-[10px]">02 // MEMORIA IDEOVISUAL</div>
+                <div className="text-neutral-500 text-[10px]">GRAFÍAS // MEMORIA VISUAL</div>
                 <div className="text-sm font-bold text-neutral-200 flex items-center gap-2">
                   <Eye className="w-3.5 h-3.5 text-amber-400" />
-                  Modo Fotografía Mental
+                  Fotografía mental
                 </div>
                 <p className="text-[11px] font-sans text-neutral-400 leading-normal">
-                  Exposición breve de 2-5s a grafías dudosas, distractor cognitivo y recuperación diferida activa.
+                  Exposición breve a la grafía dudosa y luego escribirla de memoria.
                 </p>
               </div>
 
               {/* Module 3 */}
-              <div 
+              <div
                 onClick={() => onNavigate('training', 'dictado')}
                 className="border border-neutral-800 bg-neutral-950 p-4 hover:border-neutral-700 transition-colors cursor-pointer space-y-2"
               >
-                <div className="text-neutral-500 text-[10px]">03 // TRANSCODIFICACIÓN</div>
+                <div className="text-neutral-500 text-[10px]">GRAFÍAS // DICTADO</div>
                 <div className="text-sm font-bold text-neutral-200 flex items-center gap-2">
                   <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
-                  Dictado Inteligente
+                  Dictado
                 </div>
                 <p className="text-[11px] font-sans text-neutral-400 leading-normal">
-                  Escuchar voz natural a velocidad adaptable, escribir y recibir análisis de tildes, omisiones y segmentación.
+                  Escuchar y escribir, con análisis de grafías, tildes y omisiones.
                 </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : dashboardTab === 'analytics' ? (
-        /* DEDICATED ANALYTICS VIEW */
-        <div className="space-y-6 animate-fadeIn">
-          <RetentionAnalyticsChart profile={profile} />
-          
-          <div className="border border-neutral-800 bg-neutral-950 p-6 space-y-4">
-            <h4 className="text-sm font-bold font-sans text-neutral-100 flex items-center gap-2">
-              <Brain className="w-4 h-4 text-emerald-400" />
-              <span>Fundamentación Teórica del Modelo de Memoria</span>
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-sans text-neutral-400">
-              <div className="bg-neutral-900/60 p-4 border border-neutral-800 space-y-1">
-                <span className="font-mono text-[10px] text-emerald-400 uppercase font-bold block">1. Ley del Decaimiento</span>
-                <p>La curva de olvido (Ebbinghaus, 1885) postula una pérdida logarítmica del recuerdo en ausencia de refuerzo activo.</p>
-              </div>
-              <div className="bg-neutral-900/60 p-4 border border-neutral-800 space-y-1">
-                <span className="font-mono text-[10px] text-blue-400 uppercase font-bold block">2. Repetición Espaciada</span>
-                <p>Al programar repasos justo antes del punto crítico de olvido, la pendiente de decaimiento se aplana exponencialmente.</p>
-              </div>
-              <div className="bg-neutral-900/60 p-4 border border-neutral-800 space-y-1">
-                <span className="font-mono text-[10px] text-amber-400 uppercase font-bold block">3. Huella Ideovisual</span>
-                <p>El anclaje visual y semántico de la grafía dudosa consolida la representación ortográfica en el lexicón mental a largo plazo.</p>
               </div>
             </div>
           </div>
@@ -659,7 +602,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       onClick={() => onOpenCoach && onOpenCoach(wordItem)}
                       className="text-xs text-neutral-400 hover:text-neutral-200 underline"
                     >
-                      Pista socrática
+                      Ver pista
                     </button>
 
                     <button

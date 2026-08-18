@@ -12,12 +12,23 @@ import {
 } from '../data/orthographyBank';
 import { speechService } from '../utils/speech';
 import { srsManager } from '../utils/srsEngine';
-import { buildContrastChallenge, foldAccents } from '../utils/proceduralEngine';
+import { buildContrastChallenge, foldAccents, generateSpellingChoice } from '../utils/proceduralEngine';
 import {
-  Eye, Volume2, Sparkles, HelpCircle, ArrowRight, RotateCcw,
-  Check, AlertCircle, Layers, Compass, Brain, Edit3, ShieldAlert, Zap, CheckCircle2,
-  Pilcrow, CaseUpper
+  Eye, Volume2, ArrowRight, RotateCcw,
+  Check, AlertCircle, Layers, Compass, Brain, Edit3, ShieldAlert, CheckCircle2,
+  Pilcrow, CaseUpper, Type
 } from 'lucide-react';
+
+/**
+ * Núcleo de la app: grafías. Solo ítems cuya confusión es de LETRA
+ * (b/v, s/c/z, g/j, h, ll/y, r/rr…), no de tilde. Se excluyen los
+ * distractores que sólo difieren en el acento para no mezclar con tildes.
+ */
+const SPELLING_ITEMS = ORTHOGRAPHY_WORD_BANK.filter(
+  (i) =>
+    (i.category === 'spellings' || i.category === 'morphology') &&
+    i.commonErrors.some((e) => !/\s/.test(e) && foldAccents(e) !== foldAccents(i.word))
+);
 
 /**
  * Normaliza puntuación para comparar de forma determinista:
@@ -40,10 +51,15 @@ interface TrainingHubProps {
 
 export const TrainingHub: React.FC<TrainingHubProps> = ({
   profile,
-  initialMode = 'contrastes',
+  initialMode = 'grafias',
   onOpenCoach,
 }) => {
   const [activeTab, setActiveTab] = useState<string>(initialMode);
+
+  // Núcleo: Grafías (elección de la forma correcta: b/v, s/c/z, g/j, h…)
+  const [grafiaIndex, setGrafiaIndex] = useState(0);
+  const [grafiaSelected, setGrafiaSelected] = useState<string | null>(null);
+  const [grafiaChecked, setGrafiaChecked] = useState(false);
 
   // Sync tab if initialMode prop changes
   useEffect(() => {
@@ -111,6 +127,10 @@ export const TrainingHub: React.FC<TrainingHubProps> = ({
   }, [activeTab]);
 
   // Current items
+  const currentGrafia = SPELLING_ITEMS.length
+    ? SPELLING_ITEMS[grafiaIndex % SPELLING_ITEMS.length]
+    : null;
+  const grafiaExercise = currentGrafia ? generateSpellingChoice(currentGrafia) : null;
   const currentContrast = MINIMAL_CONTRASTS[contrastIndex % MINIMAL_CONTRASTS.length];
   // Desafío de discriminación derivado de los datos del contraste (no hardcodeado)
   const contrastChallenge = buildContrastChallenge(currentContrast);
@@ -232,47 +252,36 @@ export const TrainingHub: React.FC<TrainingHubProps> = ({
       <div className="border-b border-neutral-800 pb-4">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
-            <span className="text-[10px] text-neutral-500 uppercase tracking-widest block">LABORATORIO COGNITIVO</span>
+            <span className="text-[10px] text-neutral-500 uppercase tracking-widest block">ENTRENAR ORTOGRAFÍA</span>
             <h2 className="text-2xl font-bold font-sans text-neutral-100">
-              Entrenamiento de Adquisición Ortográfica
+              Cómo se escriben las palabras
             </h2>
           </div>
           <button
-            onClick={() => onOpenCoach(undefined, 'Laboratorio en ejecución')}
+            onClick={() => onOpenCoach(undefined, 'Entrenamiento en ejecución')}
             className="flex items-center space-x-1.5 bg-neutral-900 border border-neutral-800 hover:border-neutral-700 px-3 py-1.5 text-xs text-neutral-300 transition-colors"
           >
             <Brain className="w-3.5 h-3.5 text-amber-400" />
-            <span>CONSULTAR ORTO COACH</span>
+            <span>VER PISTAS</span>
           </button>
         </div>
 
-        {/* Submodule Navigation */}
-        <div className="flex space-x-1 overflow-x-auto pb-1 scrollbar-none">
-          {[
-            ...(recurrentItems.length > 0 || activeTab === 'recurrentes'
-              ? [{ id: 'recurrentes', label: `🔥 ERRORES RECURRENTES (${recurrentItems.length})`, icon: ShieldAlert, highlight: true }]
-              : []),
-            { id: 'contrastes', label: '01 CONTRASTES & DETECTIVE', icon: Compass },
-            { id: 'input', label: '02 INPUT ESTRUCTURADO', icon: Layers },
-            { id: 'fotografia', label: '03 MODO FOTOGRAFÍA (IDEOVISUAL)', icon: Eye },
-            { id: 'silaba', label: '04 SÍLABA TÓNICA & DESCUBRIMIENTO', icon: Brain },
-            { id: 'morfologia', label: '05 FAMILIAS & SUFIJOS', icon: Edit3 },
-            { id: 'dictado', label: '06 DICTADO INTELIGENTE', icon: Volume2 },
-            { id: 'puntuacion', label: '07 PUNTUACIÓN', icon: Pilcrow },
-            { id: 'mayusculas', label: '08 MAYÚSCULAS', icon: CaseUpper },
-          ].map(tab => {
+        {/* Submodule Navigation, grouped: el núcleo (grafías) primero */}
+        {(() => {
+          const renderTab = (tab: { id: string; label: string; icon: typeof Compass }) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
+            const isRecurrent = tab.id === 'recurrentes';
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-3 py-2 text-xs font-mono transition-all flex items-center space-x-2 border whitespace-nowrap ${
                   active
-                    ? tab.id === 'recurrentes'
+                    ? isRecurrent
                       ? 'bg-amber-400 text-neutral-950 font-bold border-amber-400 shadow-sm'
                       : 'bg-neutral-100 text-neutral-950 font-bold border-neutral-100 shadow-sm'
-                    : tab.id === 'recurrentes'
+                    : isRecurrent
                       ? 'bg-amber-950/40 text-amber-300 border-amber-800/80 hover:bg-amber-900/40'
                       : 'bg-neutral-950 text-neutral-400 hover:text-neutral-200 border-neutral-800/80 hover:border-neutral-700'
                 }`}
@@ -281,9 +290,156 @@ export const TrainingHub: React.FC<TrainingHubProps> = ({
                 <span>{tab.label}</span>
               </button>
             );
-          })}
-        </div>
+          };
+
+          const coreTabs = [
+            ...(recurrentItems.length > 0 || activeTab === 'recurrentes'
+              ? [{ id: 'recurrentes', label: `🔥 ERRORES RECURRENTES (${recurrentItems.length})`, icon: ShieldAlert }]
+              : []),
+            { id: 'grafias', label: 'GRAFÍAS · B/V · S/C/Z · G/J · H', icon: Type },
+            { id: 'fotografia', label: 'MEMORIA VISUAL', icon: Eye },
+            { id: 'morfologia', label: 'FAMILIAS & SUFIJOS', icon: Edit3 },
+            { id: 'dictado', label: 'DICTADO', icon: Volume2 },
+          ];
+          const secondaryTabs = [
+            { id: 'contrastes', label: 'TILDES · CONTRASTES', icon: Compass },
+            { id: 'silaba', label: 'TILDES · SÍLABA', icon: Brain },
+            { id: 'input', label: 'SIGNIFICADO Y FORMA', icon: Layers },
+            { id: 'puntuacion', label: 'PUNTUACIÓN', icon: Pilcrow },
+            { id: 'mayusculas', label: 'MAYÚSCULAS', icon: CaseUpper },
+          ];
+
+          return (
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider shrink-0 pr-1">
+                  Núcleo · Grafías
+                </span>
+                {coreTabs.map(renderTab)}
+              </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider shrink-0 pr-1">
+                  Secundario
+                </span>
+                {secondaryTabs.map(renderTab)}
+              </div>
+            </div>
+          );
+        })()}
       </div>
+
+      {/* MODULE 0 (NÚCLEO): GRAFÍAS — elegir la forma correcta (b/v, s/c/z, g/j, h…) */}
+      {activeTab === 'grafias' && (
+        <div className="border border-neutral-800 bg-neutral-950 p-6 sm:p-8 space-y-6">
+          <div className="flex items-center justify-between border-b border-neutral-800 pb-3 text-xs">
+            <span className="font-bold text-neutral-400 uppercase">
+              GRAFÍA {SPELLING_ITEMS.length ? (grafiaIndex % SPELLING_ITEMS.length) + 1 : 0} DE {SPELLING_ITEMS.length}
+            </span>
+            <span className="text-neutral-500">¿B O V? · ¿S, C O Z? · ¿G O J? · ¿CON H?</span>
+          </div>
+
+          {grafiaExercise && currentGrafia ? (
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <span className="text-[10px] text-neutral-500 uppercase tracking-wider block">
+                  {currentGrafia.ruleCategoryName || currentGrafia.subcategory || 'Grafía dudosa'} · nivel {currentGrafia.level}
+                </span>
+                <h3 className="text-lg sm:text-xl font-bold font-sans text-neutral-100">
+                  {grafiaExercise.prompt}
+                </h3>
+                {grafiaExercise.contextSentence && (
+                  <p className="text-sm font-sans text-neutral-300 bg-neutral-900/60 border border-neutral-800 p-3 italic">
+                    «{grafiaExercise.contextSentence}»
+                  </p>
+                )}
+              </div>
+
+              {/* Opciones de forma */}
+              <div className="flex flex-wrap gap-2">
+                {grafiaExercise.options.map((opt, idx) => {
+                  const chosen = grafiaSelected === opt;
+                  const isCorrect = opt === grafiaExercise.correct;
+                  let cls = 'border-neutral-800 bg-neutral-950 text-neutral-200 hover:border-neutral-600';
+                  if (grafiaChecked) {
+                    if (isCorrect) cls = 'border-emerald-500 bg-emerald-950/30 text-emerald-200 font-bold';
+                    else if (chosen) cls = 'border-amber-600 bg-amber-950/30 text-amber-200';
+                    else cls = 'border-neutral-900 bg-neutral-950/40 text-neutral-600';
+                  } else if (chosen) {
+                    cls = 'border-neutral-100 bg-neutral-100 text-neutral-950 font-bold';
+                  }
+                  return (
+                    <button
+                      key={idx}
+                      disabled={grafiaChecked}
+                      onClick={() => {
+                        if (grafiaChecked) return;
+                        setGrafiaSelected(opt);
+                        setGrafiaChecked(true);
+                        srsManager.recordAttempt(currentGrafia.id, opt === grafiaExercise.correct ? 5 : 1, 0);
+                      }}
+                      className={`px-5 py-3 text-base border font-mono transition-colors ${cls}`}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Feedback + regla */}
+              {grafiaChecked && (
+                <div className="bg-neutral-900 border border-neutral-800 p-4 text-xs font-sans text-neutral-300 space-y-2">
+                  <span className={`font-mono font-bold block ${grafiaSelected === grafiaExercise.correct ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {grafiaSelected === grafiaExercise.correct
+                      ? 'CORRECTO'
+                      : `SE ESCRIBE «${grafiaExercise.correct}»`}
+                  </span>
+                  <p>{grafiaExercise.explanation}</p>
+                  {currentGrafia.visualAnchor && (
+                    <p className="text-[11px] text-neutral-400 pt-1 border-t border-neutral-800">
+                      Ancla visual: <span className="text-amber-400 font-mono font-bold">{currentGrafia.visualAnchor.letterToHighlight}</span> — {currentGrafia.visualAnchor.description}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Acciones */}
+              <div className="flex justify-between items-center pt-2">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => speechService.speak(currentGrafia.word, { rate: 0.9 })}
+                    className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-200"
+                    title="Escuchar la palabra"
+                  >
+                    <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Escuchar</span>
+                  </button>
+                  <button
+                    onClick={() => onOpenCoach(currentGrafia)}
+                    className="text-xs text-neutral-400 hover:text-neutral-200 underline"
+                  >
+                    Ver pista
+                  </button>
+                </div>
+                <button
+                  onClick={() => {
+                    setGrafiaIndex((i) => i + 1);
+                    setGrafiaSelected(null);
+                    setGrafiaChecked(false);
+                  }}
+                  className="bg-neutral-100 hover:bg-neutral-200 text-neutral-950 font-bold px-5 py-2 text-xs flex items-center space-x-1.5"
+                >
+                  <span>SIGUIENTE PALABRA</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-16 text-xs text-neutral-400 font-sans">
+              No hay ítems de grafías cargados todavía.
+            </div>
+          )}
+        </div>
+      )}
 
       {/* MODULE 1: CONTRASTES MÍNIMOS & DETECTIVE ORTOGRÁFICO */}
       {activeTab === 'contrastes' && (
@@ -909,7 +1065,7 @@ export const TrainingHub: React.FC<TrainingHubProps> = ({
               onClick={() => onOpenCoach(undefined, currentDictation.hints[0])}
               className="text-xs text-neutral-400 hover:text-neutral-200 underline"
             >
-              Pedir orientación socrática
+              Ver pista
             </button>
             <button
               onClick={handleAnalyzeDictation}
@@ -1040,7 +1196,7 @@ export const TrainingHub: React.FC<TrainingHubProps> = ({
                       onClick={() => onOpenCoach(currentRecurrentItem.wordItem)}
                       className="text-xs text-neutral-400 hover:text-neutral-200 underline"
                     >
-                      Pedir pista socrática al Orto Coach
+                      Ver pista
                     </button>
                     <button
                       onClick={() => {
@@ -1204,14 +1360,14 @@ export const TrainingHub: React.FC<TrainingHubProps> = ({
                   ¡No tenés errores recurrentes activos!
                 </h3>
                 <p className="text-xs text-neutral-400 max-w-sm mx-auto font-sans">
-                  Tu lexicón mental está calibrado. Podés continuar practicando con los módulos estándar de contraste o dictado.
+                  No tenés errores pendientes. Seguí practicando las grafías o el dictado.
                 </p>
               </div>
               <button
-                onClick={() => setActiveTab('contrastes')}
+                onClick={() => setActiveTab('grafias')}
                 className="bg-neutral-100 hover:bg-neutral-200 text-neutral-950 font-bold px-5 py-2 text-xs"
               >
-                IR A TRÍADAS & CONTRASTES
+                IR A GRAFÍAS
               </button>
             </div>
           )}
