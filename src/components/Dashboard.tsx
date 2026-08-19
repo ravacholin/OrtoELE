@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { UserProfile, OrthoWordItem, SrsItemState } from '../types';
 import {
   Play, CheckCircle2, RotateCcw, Sparkles, BookOpen,
-  AlertTriangle, ArrowRight, Eye, Volume2, Target, ShieldAlert, Zap, Filter, Type
+  AlertTriangle, ArrowRight, Eye, Volume2, Target, ShieldAlert, Zap, Filter, Type, PenLine, KeyRound
 } from 'lucide-react';
 import { srsManager } from '../utils/srsEngine';
 import { speechService } from '../utils/speech';
 import { assembleDailyChallenge, todayKey } from '../utils/proceduralEngine';
+import { AchievementsPanel } from './AchievementsPanel';
 
 const CATEGORY_LABEL: Record<string, string> = {
   accentuation: 'Acentuación',
@@ -301,6 +302,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <span className="text-neutral-300 font-bold block">Diagnóstico</span>
               <span className="text-[10px] text-neutral-500">Evaluar nivel</span>
             </button>
+
+            <button
+              onClick={() => onNavigate('review')}
+              className="border border-neutral-800 bg-neutral-950 hover:bg-neutral-900 p-3 text-left font-mono text-xs transition-colors group"
+            >
+              <PenLine className="w-4 h-4 text-neutral-400 group-hover:text-neutral-200 mb-1.5" />
+              <span className="text-neutral-300 font-bold block">Revisar texto</span>
+              <span className="text-[10px] text-neutral-500">Corrector por reglas</span>
+            </button>
+
+            <button
+              onClick={() => onNavigate('escape')}
+              className="border border-neutral-800 bg-neutral-950 hover:bg-neutral-900 p-3 text-left font-mono text-xs transition-colors group"
+            >
+              <KeyRound className="w-4 h-4 text-neutral-400 group-hover:text-neutral-200 mb-1.5" />
+              <span className="text-neutral-300 font-bold block">Escape Orto</span>
+              <span className="text-[10px] text-neutral-500">Acertijos ortográficos</span>
+            </button>
           </div>
 
           {/* Profile & Errors Section — solo con datos reales */}
@@ -505,6 +524,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
           </div>
+
+          {/* LOGROS — gamificación honesta (Fase 3): derivados solo de datos reales */}
+          <AchievementsPanel profile={profile} />
         </div>
       ) : (
         /* DEDICATED RECURRENT ERRORS VIEW */

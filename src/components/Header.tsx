@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { UserProfile } from '../types';
-import { Volume2, Sparkles, Terminal, BookOpen, RotateCcw, CheckCircle2, Flame, WifiOff } from 'lucide-react';
+import { Volume2, Sparkles, Terminal, BookOpen, RotateCcw, CheckCircle2, Flame, WifiOff, PenLine, KeyRound } from 'lucide-react';
 import { speechService } from '../utils/speech';
 import { swManager } from '../utils/serviceWorkerRegistration';
 
@@ -41,6 +41,8 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'dashboard', label: 'INICIO', icon: Terminal },
     { id: 'training', label: 'ENTRENAR ORTOGRAFÍA', icon: BookOpen },
     { id: 'srs', label: 'REPASAR (SRS)', icon: RotateCcw },
+    { id: 'review', label: 'REVISAR TEXTO', icon: PenLine },
+    { id: 'escape', label: 'ESCAPE ORTO', icon: KeyRound },
     { id: 'diagnostic', label: 'DIAGNÓSTICO', icon: CheckCircle2 },
     { id: 'lexicon', label: 'VOCABULARIO', icon: Sparkles },
   ];

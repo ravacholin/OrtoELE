@@ -1,6 +1,7 @@
 import { OrthoWordItem, MinimalContrastSet, StructuredInputExercise, DictationItem, Level, OrthoCategory, L1Language, EscapeScenario, EscapeRoomStage } from '../types';
 import { EXTRA_WORDS } from './bank/words';
 import { EXTRA_WORDS_2 } from './bank/words2';
+import { EXTRA_WORDS_3 } from './bank/words3';
 import {
   EXTRA_CONTRASTS,
   EXTRA_STRUCTURED_INPUT,
@@ -73,6 +74,7 @@ export type { EscapeScenario, EscapeRoomStage } from '../types';
 export const ORTHOGRAPHY_WORD_BANK: OrthoWordItem[] = [
   ...EXTRA_WORDS,
   ...EXTRA_WORDS_2,
+  ...EXTRA_WORDS_3,
   {
     id: 'w-medico',
     word: 'médico',

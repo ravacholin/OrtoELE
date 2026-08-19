@@ -1,5 +1,35 @@
 # ORTOGRAFÍA LAB — Plan maestro profundizado (100% procedural, sin IA)
 
+> **Actualización (Fase 3 — escritura libre, escape rooms, contenido B2/C1/C2
+> y gamificación honesta).** Cierra las «próximas fases» previstas en las
+> Fases 1–2, siempre 100 % procedural/offline y sin inventar datos:
+> - **Revisión de texto cableada** (`src/components/TextReviewView.tsx`, vista
+>   `review`): expone el motor `analyzeText()` (que ya existía pero estaba
+>   desconectado) como corrector honesto por reglas. Marca solo lo verificable
+>   ([ORT]/[TIL]/[PUN]/[MA]/[SEG]) con la regla de oro anti-falsos-positivos,
+>   ofrece consignas por nivel y aclara que «sin marcas» no significa
+>   «perfecto».
+> - **Escape Orto cableado** (`src/components/EscapeRoomView.tsx`, vista
+>   `escape`): recorre los `ESCAPE_SCENARIOS` etapa por etapa (selección
+>   múltiple, contraste, clave escrita), valida cada cerradura de forma
+>   determinista (normalización sin tildes) y marca el escenario superado en
+>   `profile.escapeRoomsCleared` (dato real).
+> - **Contenido B2/C1/C2** (`src/data/bank/words3.ts`, +24 ítems curados):
+>   esdrújulas cultas (análisis, hipótesis, parámetro), cambios de acento en el
+>   plural (examen→exámenes, joven→jóvenes, régimen→regímenes), hiatos
+>   (continúa, garantía), H intercalada (vehículo, cohesión, exhaustivo),
+>   grupo -x- y diéresis -gü-, tríadas verbo/sustantivo (público/publico/
+>   publicó) y homófonos cultos (haber/a ver, rebelar/revelar, halla/haya). El
+>   banco pasa de 99 a 123 ítems y sigue validado por `scripts/validateBank.ts`.
+> - **Gamificación honesta** (`src/utils/achievements.ts`,
+>   `src/components/AchievementsPanel.tsx`): logros derivados EXCLUSIVAMENTE de
+>   datos reales (sesiones, palabras dominadas, racha, precisión con mínimo de
+>   intentos, errores reconvertidos, especialidad por categoría y escapes
+>   resueltos). Un usuario nuevo ve todos los logros bloqueados con progreso
+>   real en 0; nada de puntos o experiencia ficticios.
+>
+> Todo verificado con `bun run lint` + `bun run build` en verde.
+
 > **Actualización (Fase 2 — dictado con alineación por distancia de edición).**
 > El dictado dejó de evaluarse con un cotejo posicional/palabra-a-cadena que se
 > desalineaba en cuanto el estudiante omitía o agregaba una palabra. Ahora se
@@ -145,12 +175,14 @@ misma tarjeta.
 | Función del prompt (originalmente IA) | Reemplazo procedural determinista | Dónde |
 |---|---|---|
 | **Tutor socrático "ORTO COACH"** (§30) | Pistas escalonadas (nivel 1/2/3) + microanálisis (silabación, ancla visual, confusables, recuperación activa) derivados de los **metadatos del ítem**. No hay generación de texto libre. | `SocraticCoachDrawer.tsx`, `socraticClues` en el banco |
-| **Evaluación de escritura libre** (§28–29) | `analyzeText()`: índice de formas mal escritas conocidas + reglas verificables (mayúscula inicial, ¿?/¡! de apertura, coma de conectores, días/meses/idiomas en minúscula, nombres propios, uniones indebidas). Marca `[ORT] [TIL] [PUN] [MA] [SEG]` con la "regla de oro" anti-falsos-positivos. | `proceduralEngine.ts` |
+| **Evaluación de escritura libre** (§28–29) | `analyzeText()`: índice de formas mal escritas conocidas + reglas verificables (mayúscula inicial, ¿?/¡! de apertura, coma de conectores, días/meses/idiomas en minúscula, nombres propios, uniones indebidas). Marca `[ORT] [TIL] [PUN] [MA] [SEG]` con la "regla de oro" anti-falsos-positivos. **Cableado en Fase 3** como vista *Revisar texto*, con consignas por nivel. | `proceduralEngine.ts`, `TextReviewView.tsx` |
 | **Dictado inteligente** (§26–27) | Reproducción con `speechSynthesis` (voz del navegador) + **alineación por distancia de edición** (Needleman–Wunsch) que clasifica cada token (exacta / solo tilde / grafía / palabra cambiada / omitida / de más) tolerando inserciones y omisiones. | `dictationAlignment.ts`, `DictationExercise.tsx`, `TrainingHub.tsx` (Dictado), `speech.ts` |
 | **Generación de ejercicios** (§10) | Generadores deterministas sembrados por PRNG (`generateSpellingChoice`, `buildContrastChallenge`, `generateExerciseBatch`) a partir del banco. Mismo ítem → mismas opciones. | `proceduralEngine.ts` |
 | **Motor adaptativo / SRS** (§32–33) | SRS propio basado en recuperación activa (estados NUEVO→APRENDIENDO→INCIERTO→ESTABLE→DOMINADO). | `srsEngine.ts` |
 | **Desafío del día** (§37) | `assembleDailyChallenge()`: selección reproducible por fecha (PRNG sembrado con `YYYY-MM-DD`) priorizando las categorías más débiles del perfil de error. | `proceduralEngine.ts`, `Dashboard.tsx` |
 | **Corrección de puntuación/mayúsculas** (§24–25) | Comparación normalizada contra la forma canónica curada (sin inferencia). | `TrainingHub.tsx` (tabs Puntuación/Mayúsculas), `bank/punctuation.ts`, `bank/capitals.ts` |
+| **Escape Orto** (§38) | Acertijos ortográficos por etapas (selección múltiple, contraste, clave escrita) validados de forma determinista por comparación normalizada; el escenario superado se guarda en `escapeRoomsCleared`. **Cableado en Fase 3.** | `EscapeRoomView.tsx`, `ESCAPE_SCENARIOS` en el banco |
+| **Gamificación** (progreso/logros) | Logros derivados solo de datos reales (sesiones, dominadas, racha, precisión con mínimo de intentos, errores reconvertidos, especialidad por categoría, escapes). Sin puntos ni experiencia ficticios; función pura y determinista. **Añadido en Fase 3.** | `achievements.ts`, `AchievementsPanel.tsx` |
 
 **Todo lo que requería IA se descartó o se reemplazó por lógica de reglas.** El
 endpoint `GET /api/health` lo refleja: `{ engine: "procedural-local", ai: false }`.
