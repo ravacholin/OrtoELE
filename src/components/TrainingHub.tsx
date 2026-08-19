@@ -13,6 +13,7 @@ import {
 import { speechService } from '../utils/speech';
 import { srsManager } from '../utils/srsEngine';
 import { buildContrastChallenge, foldAccents, generateSpellingChoice } from '../utils/proceduralEngine';
+import { alignDictation, DictationTokenStatus } from '../utils/dictationAlignment';
 import {
   Eye, Volume2, ArrowRight, RotateCcw,
   Check, AlertCircle, Layers, Compass, Brain, Edit3, ShieldAlert, CheckCircle2,
@@ -100,7 +101,7 @@ export const TrainingHub: React.FC<TrainingHubProps> = ({
   const [writtenDictation, setWrittenDictation] = useState('');
   const [dictationAnalysis, setDictationAnalysis] = useState<{
     precision: number;
-    differences: { word: string; status: 'ok' | 'spelling' | 'accent' | 'missing' }[];
+    differences: { display: string; status: DictationTokenStatus; note?: string }[];
   } | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
 
@@ -220,28 +221,22 @@ export const TrainingHub: React.FC<TrainingHubProps> = ({
   };
 
   const handleAnalyzeDictation = () => {
-    const originalWords = currentDictation.text.replace(/[.,;!?]/g, '').toLowerCase().split(/\s+/).filter(Boolean);
-    const typedWords = writtenDictation.replace(/[.,;!?]/g, '').toLowerCase().split(/\s+/).filter(Boolean);
-
-    let matchCount = 0;
-    const diffs = originalWords.map((orig, i) => {
-      const typed = typedWords[i] || '';
-      if (typed === orig) {
-        matchCount++;
-        return { word: orig, status: 'ok' as const };
-      }
-      // Check if it's just an accent error (remove accents)
-      const stripOrig = orig.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      const stripTyped = typed.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      if (stripOrig === stripTyped) {
-        return { word: `${typed} [TIL -> ${orig}]`, status: 'accent' as const };
-      }
-      return { word: `${typed || '___'} [ORT -> ${orig}]`, status: 'spelling' as const };
+    // Alineaci\u00f3n por distancia de edici\u00f3n: tolera omisiones e inserciones sin
+    // desalinear el resto del texto (a diferencia del cotejo posicional previo).
+    const alignment = alignDictation(writtenDictation, currentDictation.text);
+    const diffs = alignment.tokens.map((t) => {
+      const note =
+        t.status === 'accent' || t.status === 'grapheme' || t.status === 'wrong'
+          ? `\u2192 ${t.expected}`
+          : t.status === 'missing'
+            ? 'falt\u00f3'
+            : t.status === 'extra'
+              ? 'sobra'
+              : undefined;
+      return { display: t.status === 'missing' ? (t.expected || '___') : (t.typed || '___'), status: t.status, note };
     });
-
-    const prec = Math.round((matchCount / originalWords.length) * 100);
     setDictationAnalysis({
-      precision: prec,
+      precision: Math.round(alignment.accuracy * 100),
       differences: diffs,
     });
   };
@@ -1092,18 +1087,24 @@ export const TrainingHub: React.FC<TrainingHubProps> = ({
               <div className="space-y-2 font-sans pt-2 border-t border-neutral-800">
                 <span className="text-[10px] text-neutral-500 font-mono uppercase block">DESGLOSE DE CONCORDANCIA:</span>
                 <div className="flex flex-wrap gap-2">
-                  {dictationAnalysis.differences.map((diff, i) => (
-                    <span
-                      key={i}
-                      className={`px-2 py-1 border text-xs font-mono ${
-                        diff.status === 'ok'
-                          ? 'border-emerald-800 bg-emerald-950/40 text-emerald-300'
-                          : 'border-amber-700 bg-amber-950/40 text-amber-300'
-                      }`}
-                    >
-                      {diff.word}
-                    </span>
-                  ))}
+                  {dictationAnalysis.differences.map((diff, i) => {
+                    const tone =
+                      diff.status === 'correct'
+                        ? 'border-emerald-800 bg-emerald-950/40 text-emerald-300'
+                        : diff.status === 'accent'
+                          ? 'border-amber-700 bg-amber-950/40 text-amber-300'
+                          : diff.status === 'missing'
+                            ? 'border-sky-800 bg-sky-950/40 text-sky-300'
+                            : diff.status === 'extra'
+                              ? 'border-neutral-700 bg-neutral-900/60 text-neutral-500 line-through'
+                              : 'border-rose-800 bg-rose-950/40 text-rose-300';
+                    return (
+                      <span key={i} className={`px-2 py-1 border text-xs font-mono ${tone}`}>
+                        {diff.display}
+                        {diff.note && <span className="ml-1 opacity-70">{diff.note}</span>}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
 
