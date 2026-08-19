@@ -11,6 +11,8 @@ import { TrainingHub } from './components/TrainingHub';
 import { SessionRunner } from './components/SessionRunner';
 import { SrsReviewView } from './components/SrsReviewView';
 import { VocabularyLexicon } from './components/VocabularyLexicon';
+import { TextReviewView } from './components/TextReviewView';
+import { EscapeRoomView } from './components/EscapeRoomView';
 import { SocraticCoachDrawer } from './components/SocraticCoachDrawer';
 
 export default function App() {
@@ -109,6 +111,13 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Escape rooms: marca un escenario como superado en el perfil real.
+  const handleClearScenario = (scenarioId: string) => {
+    const current = profile.escapeRoomsCleared || [];
+    if (current.includes(scenarioId)) return;
+    handleUpdateProfile({ ...profile, escapeRoomsCleared: [...current, scenarioId] });
+  };
+
   const handleTrainWordFromLexicon = (wordItem: OrthoWordItem) => {
     setCoachTargetWord(wordItem);
     setTrainingSubcategory('fotografia');
@@ -177,6 +186,20 @@ export default function App() {
             profile={profile}
             onOpenCoach={handleOpenCoach}
             onTrainWord={handleTrainWordFromLexicon}
+          />
+        )}
+
+        {currentView === 'review' && (
+          <TextReviewView
+            profile={profile}
+            onOpenCoach={() => handleOpenCoach()}
+          />
+        )}
+
+        {currentView === 'escape' && (
+          <EscapeRoomView
+            profile={profile}
+            onClearScenario={handleClearScenario}
           />
         )}
       </main>
